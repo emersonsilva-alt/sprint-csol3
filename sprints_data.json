@@ -3,7 +3,7 @@
     "nome": "Sprint 7",
     "tipo_sprint": "Projeto",
     "data_inicio": "2026-07-29",
-    "data_termino": "2026-08-19",
+    "data_fim": "2026-08-19",
     "tarefas": [
       {
         "id": "232712",
@@ -109,7 +109,7 @@
     "nome": "Sprint 9",
     "tipo_sprint": "Projeto",
     "data_inicio": "2026-09-22",
-    "data_termino": "2026-10-13",
+    "data_fim": "2026-10-13",
     "tarefas": [
       {
         "id": "231027",
@@ -215,7 +215,7 @@
     "nome": "Priorizadas SESAB - Evolução",
     "tipo_sprint": "Evolução",
     "data_inicio": "2026-08-12",
-    "data_termino": "2026-08-28",
+    "data_fim": "2026-08-28",
     "tarefas": [
       {
         "id": "217671",

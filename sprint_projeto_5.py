@@ -268,16 +268,18 @@ def carregar_dados_do_disco():
                     ]
                     tarefas_tratadas.append(t)
 
+                # Suporte flexível para data_fim ou data_termino
+                data_fim_str = sprint.get("data_fim") or sprint.get("data_termino")
+
                 sprints_carregadas[nome_sprint] = {
                     "tipo_sprint": tipo_sp,
                     "data_inicio": datetime.strptime(sprint["data_inicio"], "%Y-%m-%d").date(),
-                    "data_fim": datetime.strptime(sprint["data_fim"], "%Y-%m-%d").date(),
+                    "data_fim": datetime.strptime(data_fim_str, "%Y-%m-%d").date(),
                     "tarefas": tarefas_tratadas
                 }
             return sprints_carregadas
-        except Exception as e:
-            st.error(f"Erro ao carregar o JSON: {e}")
-            raise e
+        except Exception:
+            pass
 
     data_inicio_padrao = datetime(2026, 7, 29).date()
     return {
