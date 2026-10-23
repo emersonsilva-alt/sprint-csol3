@@ -275,8 +275,9 @@ def carregar_dados_do_disco():
                     "tarefas": tarefas_tratadas
                 }
             return sprints_carregadas
-        except Exception:
-            pass
+        except Exception as e:
+            st.error(f"Erro ao carregar o JSON: {e}")
+            raise e
 
     data_inicio_padrao = datetime(2026, 7, 29).date()
     return {
