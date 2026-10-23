@@ -1,6 +1,6 @@
 {
-  "Sprint 7 - Projeto": {
-    "nome": "Sprint 7 - Projeto",
+  "Sprint 7": {
+    "nome": "Sprint 7",
     "tipo_sprint": "Projeto",
     "data_inicio": "2026-07-29",
     "data_termino": "2026-08-19",
@@ -105,8 +105,8 @@
       }
     ]
   },
-  "Sprint 9 - Projeto": {
-    "nome": "Sprint 9 - Projeto",
+  "Sprint 9": {
+    "nome": "Sprint 9",
     "tipo_sprint": "Projeto",
     "data_inicio": "2026-09-22",
     "data_termino": "2026-10-13",
