@@ -147,17 +147,17 @@ def aplicar_estilo_prodeb():
             font-weight: 700 !important;
         }
 
-        /* REMOVE A LINHA LARANJA/VERMELHA PADRÃO DO STREAMLIT */
-        div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
-        div[data-testid="stTabs"] [data-baseweb="tab-border"] {
+        /* ANula e oculta totalmente a barra colorida padrão do BaseWeb */
+        div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
             background-color: #FFFFFF !important;
             background: #FFFFFF !important;
-            height: 3px !important;
+            transform: none !important;
+            height: 2px !important;
         }
 
-        /* Força a remoção de pseudo-elementos alaranjados */
-        div[data-testid="stTabs"] [data-baseweb="tab"]::after {
-            display: none !important;
+        /* Oculta qualquer indicador flutuante excedente */
+        div[data-testid="stTabs"] [data-baseweb="tab-list"] > div:last-child {
+            background-color: #FFFFFF !important;
         }
 
         /* Métricas e Botões Padrão */
