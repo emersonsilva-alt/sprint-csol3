@@ -72,12 +72,10 @@ def gerar_dias_uteis_lista(data_inicio, total_dias=15):
         atual += timedelta(days=1)
     return dias
 
-# --- ESTILIZAÇÃO COMPATÍVEL COM DARK/LIGHT MODE ---
+# --- ESTILIZAÇÃO COMPATÍVEL COM DARK/LIGHT MODE E ABAS ESTILO BOTÃO CLÁSSICO ---
 def aplicar_estilo_prodeb():
     st.markdown("""
         <style>
-        /* Estilização Responsiva ao Tema (Dark / Light) */
-
         /* Estilo para a Sidebar */
         section[data-testid="stSidebar"] {
             background-color: #0A2540 !important;
@@ -99,46 +97,46 @@ def aplicar_estilo_prodeb():
             border-color: rgba(255, 255, 255, 0.2) !important;
         }
 
-        /* ESTILIZAÇÃO DOS BOTÕES/ABAS DE SPRINTS */
+        /* ESTILIZAÇÃO DAS ABAS EM FORMATO DE BOTÕES DE MENU UNIFICADOS */
         div[data-testid="stTabs"] {
-            border-bottom: none !important;
-            gap: 10px !important;
+            margin-top: 10px !important;
             margin-bottom: 20px !important;
         }
 
         div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-            gap: 12px !important;
-            background-color: transparent !important;
-            border-bottom: none !important;
+            gap: 4px !important;
+            background-color: #E2E8F0 !important;
+            padding: 5px 6px 0px 6px !important;
+            border-radius: 10px 10px 0px 0px !important;
+            border-bottom: 3px solid #0A2540 !important;
         }
 
         div[data-testid="stTabs"] [data-baseweb="tab"] {
-            height: 42px !important;
-            white-space: pre !important;
-            background-color: rgba(10, 37, 64, 0.12) !important;
-            border-radius: 8px !important;
-            color: #555555 !important;
+            height: 38px !important;
+            background-color: #EDF2F7 !important;
+            border-radius: 6px 6px 0px 0px !important;
+            color: #4A5568 !important;
             font-weight: 600 !important;
-            padding: 8px 18px !important;
-            border: 1px solid rgba(10, 37, 64, 0.2) !important;
-            opacity: 0.65 !important;
-            transition: all 0.3s ease-in-out !important;
+            padding: 0px 16px !important;
+            border: 1px solid #CBD5E0 !important;
+            border-bottom: none !important;
+            transition: all 0.2s ease-in-out !important;
         }
 
-        /* Hover nas Abas */
+        /* Hover nas Abas Inativas */
         div[data-testid="stTabs"] [data-baseweb="tab"]:hover {
-            opacity: 0.9 !important;
-            background-color: rgba(10, 37, 64, 0.25) !important;
-            transform: translateY(-1px);
+            background-color: #E2E8F0 !important;
+            color: #1A202C !important;
         }
 
-        /* Aba Selecionada / Ativa (Destaque Azul) */
+        /* Aba Selecionada / Ativa (Destaque Azul Sólido) */
         div[data-testid="stTabs"] [aria-selected="true"] {
             background-color: #0A2540 !important;
             color: #FFFFFF !important;
-            opacity: 1.0 !important;
-            border: 1px solid #0A2540 !important;
-            box-shadow: 0px 4px 10px rgba(10, 37, 64, 0.35) !important;
+            border-color: #0A2540 !important;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0px -2px 6px rgba(10, 37, 64, 0.2);
         }
 
         div[data-testid="stTabs"] [aria-selected="true"] p,
@@ -147,7 +145,6 @@ def aplicar_estilo_prodeb():
             font-weight: 700 !important;
         }
 
-        /* Remove linha padrão abaixo da aba do Streamlit */
         div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
             background-color: transparent !important;
         }
@@ -815,22 +812,22 @@ with st.sidebar:
             df_regua = pd.DataFrame(regua_dados)
             st.dataframe(df_regua, hide_index=True, use_container_width=True)
 
-# --- CABEÇALHO (REORGANIZADO: TÍTULO À ESQUERDA, LOGO AO LADO DIREITO COM DOBRO DE TAMANHO) ---
-col_titulo, col_logo_right = st.columns([7, 5])
+# --- CABEÇALHO (LOGO À ESQUERDA NO TAMANHO PADRÃO E TÍTULO) ---
+col_logo_left, col_titulo = st.columns([2, 8])
+
+with col_logo_left:
+    if os.path.exists(PATH_LOGO_PRODEB):
+        st.image(PATH_LOGO_PRODEB, width=160)
 
 with col_titulo:
     st.title("📊 Acompanhamento Diário - Sprints")
-
-with col_logo_right:
-    if os.path.exists(PATH_LOGO_PRODEB):
-        st.image(PATH_LOGO_PRODEB, width=320)
 
 col_head1, col_head2 = st.columns([8, 2])
 with col_head2:
     if st.button("➕ Criar Nova Sprint", use_container_width=True):
         modal_criar_sprint()
 
-# --- ABAS DE SPRINTS (FORMATO DE BOTÕES MENUS) ---
+# --- ABAS DE SPRINTS (FORMATO DE BOTÕES DE MENU CLÁSSICO) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
