@@ -72,19 +72,13 @@ def gerar_dias_uteis_lista(data_inicio, total_dias=15):
         atual += timedelta(days=1)
     return dias
 
-# --- ESTILIZAÇÃO ---
+# --- ESTILIZAÇÃO COMPATÍVEL COM DARK/LIGHT MODE ---
 def aplicar_estilo_prodeb():
     st.markdown("""
         <style>
-        :root {
-            --primary-color: #0A2540 !important;
-        }
+        /* Estilização Responsiva ao Tema (Dark / Light) */
 
-        .stApp {
-            background-color: #F8F9FA !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
+        /* Estilo para a Sidebar */
         section[data-testid="stSidebar"] {
             background-color: #0A2540 !important;
             border-top-right-radius: 20px;
@@ -96,7 +90,8 @@ def aplicar_estilo_prodeb():
         section[data-testid="stSidebar"] h2, 
         section[data-testid="stSidebar"] h3, 
         section[data-testid="stSidebar"] p, 
-        section[data-testid="stSidebar"] label {
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] span {
             color: #FFFFFF !important;
         }
 
@@ -104,76 +99,65 @@ def aplicar_estilo_prodeb():
             border-color: rgba(255, 255, 255, 0.2) !important;
         }
 
-        section[data-testid="stSidebar"] [data-testid="stExpander"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        /* ESTILIZAÇÃO DOS BOTÕES/ABAS DE SPRINTS */
+        div[data-testid="stTabs"] {
+            border-bottom: none !important;
+            gap: 10px !important;
+            margin-bottom: 20px !important;
+        }
+
+        div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+            gap: 12px !important;
+            background-color: transparent !important;
+            border-bottom: none !important;
+        }
+
+        div[data-testid="stTabs"] [data-baseweb="tab"] {
+            height: 42px !important;
+            white-space: pre !important;
+            background-color: rgba(10, 37, 64, 0.12) !important;
             border-radius: 8px !important;
-        }
-
-        section[data-testid="stSidebar"] [data-testid="stExpander"] summary,
-        section[data-testid="stSidebar"] [data-testid="stExpander"] details > summary {
-            background-color: #FFFFFF !important;
-            border-radius: 6px !important;
-            padding: 8px 12px !important;
-        }
-
-        section[data-testid="stSidebar"] [data-testid="stExpander"] summary *,
-        section[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
-        section[data-testid="stSidebar"] [data-testid="stExpander"] summary span,
-        section[data-testid="stSidebar"] [data-testid="stExpander"] summary svg,
-        section[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderToggleIcon"] {
-            color: #0A2540 !important;
-            fill: #0A2540 !important;
+            color: #555555 !important;
             font-weight: 600 !important;
+            padding: 8px 18px !important;
+            border: 1px solid rgba(10, 37, 64, 0.2) !important;
+            opacity: 0.65 !important;
+            transition: all 0.3s ease-in-out !important;
         }
 
-        div[data-testid="stMain"] [data-testid="stExpander"],
-        div[data-testid="stAppViewBlockContainer"] [data-testid="stExpander"],
-        section.main [data-testid="stExpander"] {
-            border: 1px solid #0A2540 !important;
-            border-radius: 8px !important;
+        /* Hover nas Abas */
+        div[data-testid="stTabs"] [data-baseweb="tab"]:hover {
+            opacity: 0.9 !important;
+            background-color: rgba(10, 37, 64, 0.25) !important;
+            transform: translateY(-1px);
+        }
+
+        /* Aba Selecionada / Ativa (Destaque Azul) */
+        div[data-testid="stTabs"] [aria-selected="true"] {
             background-color: #0A2540 !important;
-            overflow: hidden !important;
-        }
-
-        div[data-testid="stMain"] [data-testid="stExpander"] summary,
-        div[data-testid="stMain"] [data-testid="stExpander"] details > summary,
-        div[data-testid="stAppViewBlockContainer"] [data-testid="stExpander"] summary,
-        section.main [data-testid="stExpander"] summary {
-            background-color: #0A2540 !important;
-            border-radius: 6px 6px 0px 0px !important;
-            padding: 12px 16px !important;
-        }
-
-        div[data-testid="stMain"] [data-testid="stExpander"] summary *,
-        div[data-testid="stMain"] [data-testid="stExpander"] summary p,
-        div[data-testid="stMain"] [data-testid="stExpander"] summary span,
-        div[data-testid="stMain"] [data-testid="stExpander"] summary svg,
-        div[data-testid="stMain"] [data-testid="stExpander"] [data-testid="stExpanderToggleIcon"],
-        section.main [data-testid="stExpander"] summary * {
             color: #FFFFFF !important;
-            fill: #FFFFFF !important;
-            font-weight: 600 !important;
+            opacity: 1.0 !important;
+            border: 1px solid #0A2540 !important;
+            box-shadow: 0px 4px 10px rgba(10, 37, 64, 0.35) !important;
         }
 
-        div[data-testid="stMain"] [data-testid="stExpander"] [data-testid="stExpanderDetails"],
-        section.main [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
-            background-color: #FFFFFF !important;
-            color: #333333 !important;
-            padding: 16px !important;
+        div[data-testid="stTabs"] [aria-selected="true"] p,
+        div[data-testid="stTabs"] [aria-selected="true"] span {
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
         }
 
-        .main h1 {
-            color: #0A2540 !important;
-            font-weight: 700;
+        /* Remove linha padrão abaixo da aba do Streamlit */
+        div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+            background-color: transparent !important;
         }
 
+        /* Métricas e Botões Padrão */
         div[data-testid="stMetric"] {
-            background-color: #FFFFFF !important;
             border-left: 5px solid #0A2540 !important;
-            border-radius: 6px !important;
+            border-radius: 8px !important;
             padding: 12px 16px !important;
-            box-shadow: 0px 2px 6px rgba(0,0,0,0.06);
+            box-shadow: 0px 2px 6px rgba(0,0,0,0.08);
         }
 
         .stButton > button, 
@@ -196,16 +180,6 @@ def aplicar_estilo_prodeb():
             background-color: #0056b3 !important;
             color: #FFFFFF !important;
             box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
-        }
-
-        div[role="dialog"] {
-            border-top: 5px solid #0A2540 !important;
-            border-radius: 12px !important;
-        }
-
-        div[role="dialog"] h2 {
-            color: #0A2540 !important;
-            font-weight: 700;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -252,7 +226,6 @@ def carregar_dados_do_disco():
                 total_dias = 14 if tipo_sp == "Evolução" else 15
                 tarefas_tratadas = []
                 for t in sprint["tarefas"]:
-                    # Normalização flexível de chaves (maiúsculas/minúsculas vindas do JSON)
                     if "ID" not in t and "id" in t:
                         t["ID"] = str(t["id"])
                     if "Tarefa" not in t and "tarefa" in t:
@@ -284,7 +257,6 @@ def carregar_dados_do_disco():
                     ]
                     tarefas_tratadas.append(t)
 
-                # Suporte flexível para data_fim ou data_termino
                 data_fim_str = sprint.get("data_fim") or sprint.get("data_termino")
                 data_inicio_str = sprint.get("data_inicio")
 
@@ -330,7 +302,6 @@ def obter_sprint_padrao_principal(dt_hoje=None):
     if dt_hoje is None:
         dt_hoje = datetime.today().date()
     
-    # Filtra prioritariamente sprints de projeto
     sprints_projetos = [
         (nome, dados) for nome, dados in st.session_state.sprints.items()
         if dados.get("tipo_sprint", "Projeto") == "Projeto"
@@ -375,7 +346,7 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
     url = f"{REDMINE_URL}/issues/{issue_id}.json"
     headers = {"X-Redmine-API-Key": REDMINE_API_KEY}
     try:
-        response = requests.get(url, headers=headers, timeout=5, verify=False)
+        response = requests.get(url, headers=headers, timeout=3, verify=False)
         if response.status_code == 200:
             data = response.json().get("issue", {})
             status = data.get("status", {}).get("name", "N/A")
@@ -484,7 +455,7 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
         textColor=colors.HexColor('#0A2540'),
         spaceAfter=4
     )
-    
+
     style_subtitle = ParagraphStyle(
         'DocSubTitle',
         parent=styles['Heading2'],
@@ -505,7 +476,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     dados_sprint = st.session_state.sprints[nome_sprint]
     dt_fim_relatorio = dados_sprint['data_fim']
 
-    # Cabeçalho com Logo
     if os.path.exists(PATH_LOGO_PRODEB):
         img = RLImage(PATH_LOGO_PRODEB, width=120, height=35)
         header_data = [[img, Paragraph(f"<b>RELATÓRIO EXECUTIVO - {nome_sprint.upper()}</b>", style_title)]]
@@ -520,7 +490,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     story.append(t_header)
     story.append(Spacer(1, 12))
 
-    # Informações Gerais
     meta_info = [
         [
             Paragraph(f"<b>Gerado em:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_normal),
@@ -538,7 +507,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     story.append(t_meta)
     story.append(Spacer(1, 10))
 
-    # CÁLCULO DE DIAS ÚTEIS DE PRAZO
     dt_hoje = datetime.today().date()
     if dt_hoje > dt_fim_relatorio:
         alertas_prazos = "Status de Prazo: Sprint Finalizada"
@@ -575,7 +543,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     story.append(t_alertas)
     story.append(Spacer(1, 12))
 
-    # TABELA DE TAREFAS
     story.append(Paragraph("Acompanhamento das Tarefas", style_subtitle))
     
     headers_tabela = ["ID", "Tarefa", "Profissional", "SP", "Status Redmine", "Situação na Sprint"]
@@ -786,7 +753,7 @@ with st.sidebar:
     else:
         sprint_ref_nome = obter_sprint_padrao_principal(dt_hoje_sidebar)
         if sprint_ref_nome:
-            st.info(f"ℹ️ Nenhuma sprint em andamento. Última/Referência: **{sprint_ref_nome}**")
+            st.info(f"ℹ️ Nenhuma sprint em andamento.\nÚltima/Referência: **{sprint_ref_nome}**")
         else:
             st.info("ℹ️ Nenhuma sprint cadastrada no momento.")
 
@@ -848,20 +815,22 @@ with st.sidebar:
             df_regua = pd.DataFrame(regua_dados)
             st.dataframe(df_regua, hide_index=True, use_container_width=True)
 
-# --- CABEÇALHO ---
-col_logo_left, col_titulo = st.columns([2, 8])
-with col_logo_left:
-    if os.path.exists(PATH_LOGO_PRODEB):
-        st.image(PATH_LOGO_PRODEB, width=160)
+# --- CABEÇALHO (REORGANIZADO: TÍTULO À ESQUERDA, LOGO AO LADO DIREITO COM DOBRO DE TAMANHO) ---
+col_titulo, col_logo_right = st.columns([7, 5])
+
 with col_titulo:
     st.title("📊 Acompanhamento Diário - Sprints")
+
+with col_logo_right:
+    if os.path.exists(PATH_LOGO_PRODEB):
+        st.image(PATH_LOGO_PRODEB, width=320)
 
 col_head1, col_head2 = st.columns([8, 2])
 with col_head2:
     if st.button("➕ Criar Nova Sprint", use_container_width=True):
         modal_criar_sprint()
 
-# --- ABAS DE SPRINTS ---
+# --- ABAS DE SPRINTS (FORMATO DE BOTÕES MENUS) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
@@ -904,11 +873,6 @@ else:
 
             st.markdown("---")
 
-            if f"sincronizado_{nome_sprint}" not in st.session_state:
-                with st.spinner("🔄 Sincronizando com o Redmine..."):
-                    sincronizar_sprint_com_redmine(nome_sprint)
-                    st.session_state[f"sincronizado_{nome_sprint}"] = True
-
             dt_inicio = dados_sprint["data_inicio"]
             dt_fim = dados_sprint["data_fim"]
             dias_uteis_lista = gerar_dias_uteis_lista(dt_inicio, total_dias_sprint)
@@ -929,8 +893,10 @@ else:
             with col_m4:
                 st.write("")
                 if st.button("🔄 Sincronizar Redmine", key=f"btn_sync_{nome_sprint}", use_container_width=True):
-                    sincronizar_sprint_com_redmine(nome_sprint)
-                    st.rerun()
+                    with st.spinner("🔄 Atualizando dados com o Redmine..."):
+                        sincronizar_sprint_com_redmine(nome_sprint)
+                        st.success("Sincronização concluída!")
+                        st.rerun()
 
             st.markdown("---")
 
@@ -1042,7 +1008,6 @@ else:
             st.subheader("📋 Tarefas da Sprint")
             st.caption("💡 *Marque ou desmarque a caixa **'Conta nos Gráficos?'** para definir em tempo real quais tarefas compõem a meta.*")
 
-            # Mapeamento seguro para exibição no DataFrame
             dados_exibicao = []
             for t in dados_sprint["tarefas"]:
                 dados_exibicao.append({
@@ -1240,8 +1205,7 @@ else:
                         text=f"<b>{titulo_grafico}</b>", 
                         font=dict(
                             family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-                            size=24, 
-                            color='#0A2540'
+                            size=22
                         ),
                         x=0,
                         xanchor='left'
@@ -1295,8 +1259,7 @@ else:
                         text="<b>👥 Acompanhamento por Atribuição</b>", 
                         font=dict(
                             family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-                            size=24, 
-                            color='#0A2540'
+                            size=22
                         ),
                         x=0,
                         xanchor='left'
