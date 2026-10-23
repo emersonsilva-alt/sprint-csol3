@@ -215,8 +215,10 @@ aplicar_estilo_prodeb()
 REDMINE_URL = "https://redmine.prodeb.ba.gov.br"
 REDMINE_API_KEY = "29247a38237c8f81a65844de91d52c016cc9a8d9"
 
-PATH_LOGO_PRODEB = "/home/emersonnonato/meu_painel/Logo_Prodeb.jpeg"
-PATH_ARQUIVO_DADOS = "/home/emersonnonato/meu_painel/sprints_data.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+PATH_LOGO_PRODEB = os.path.join(BASE_DIR, "Logo_Prodeb.jpeg")
+PATH_ARQUIVO_DADOS = os.path.join(BASE_DIR, "sprints_data.json")
 
 # --- PERSISTÊNCIA EM DISCO ---
 def salvar_dados_em_disco():
