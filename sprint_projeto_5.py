@@ -147,8 +147,10 @@ def aplicar_estilo_prodeb():
             font-weight: 700 !important;
         }
 
+        /* Linha de destaque inferior da aba selecionada alterada para Branco[cite: 12] */
         div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
-            background-color: transparent !important;
+            background-color: #FFFFFF !important;
+            height: 3px !important;
         }
 
         /* Métricas e Botões Padrão */
@@ -829,7 +831,7 @@ with col_head2:
     if st.button("➕ Criar Nova Sprint", use_container_width=True):
         modal_criar_sprint()
 
-# --- ABAS DE SPRINTS (FORMATO DE BOTÕES DE MENU FIÉIS AO PRINT) ---
+# --- ABAS DE SPRINTS (FORMATO DE BOTÕES DE MENU FIÉIS AO PRINT COM LINHA BRANCA) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
