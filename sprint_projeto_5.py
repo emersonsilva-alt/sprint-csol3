@@ -97,7 +97,7 @@ def aplicar_estilo_prodeb():
             border-color: rgba(255, 255, 255, 0.2) !important;
         }
 
-        /* ESTILIZAÇÃO DAS ABAS FIÉIS AO FORMATO ENVIADO NO PRINT */
+        /* ESTILIZAÇÃO DAS ABAS */
         div[data-testid="stTabs"] {
             margin-top: 15px !important;
             margin-bottom: 25px !important;
@@ -129,7 +129,7 @@ def aplicar_estilo_prodeb():
             color: #0F172A !important;
         }
 
-        /* Aba Selecionada / Ativa (Destaque Azul com Sombra e Elevado sobre a Barra) */
+        /* Aba Selecionada / Ativa */
         div[data-testid="stTabs"] [aria-selected="true"] {
             background: linear-gradient(180deg, #0088FF 0%, #0055B3 100%) !important;
             color: #FFFFFF !important;
@@ -147,10 +147,17 @@ def aplicar_estilo_prodeb():
             font-weight: 700 !important;
         }
 
-        /* Linha de destaque inferior da aba selecionada alterada para Branco[cite: 12] */
-        div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+        /* REMOVE A LINHA LARANJA/VERMELHA PADRÃO DO STREAMLIT */
+        div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+        div[data-testid="stTabs"] [data-baseweb="tab-border"] {
             background-color: #FFFFFF !important;
+            background: #FFFFFF !important;
             height: 3px !important;
+        }
+
+        /* Força a remoção de pseudo-elementos alaranjados */
+        div[data-testid="stTabs"] [data-baseweb="tab"]::after {
+            display: none !important;
         }
 
         /* Métricas e Botões Padrão */
