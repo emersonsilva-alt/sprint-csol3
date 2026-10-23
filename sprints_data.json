@@ -1,9 +1,9 @@
 {
-  "Sprint 7": {
-    "nome": "Sprint 7",
+  "Sprint 7 - Projeto": {
+    "nome": "Sprint 7 - Projeto",
     "tipo_sprint": "Projeto",
-    "data_inicio": "29/07/2026",
-    "data_termino": "19/08/2026",
+    "data_inicio": "2026-07-29",
+    "data_termino": "2026-08-19",
     "tarefas": [
       {
         "id": "232712",
@@ -105,11 +105,11 @@
       }
     ]
   },
-  "Sprint 9": {
-    "nome": "Sprint 9",
+  "Sprint 9 - Projeto": {
+    "nome": "Sprint 9 - Projeto",
     "tipo_sprint": "Projeto",
-    "data_inicio": "22/09/2026",
-    "data_termino": "13/10/2026",
+    "data_inicio": "2026-09-22",
+    "data_termino": "2026-10-13",
     "tarefas": [
       {
         "id": "231027",
@@ -214,8 +214,8 @@
   "Priorizadas SESAB - Evolução": {
     "nome": "Priorizadas SESAB - Evolução",
     "tipo_sprint": "Evolução",
-    "data_inicio": "12/08/2026",
-    "data_termino": "28/08/2026",
+    "data_inicio": "2026-08-12",
+    "data_termino": "2026-08-28",
     "tarefas": [
       {
         "id": "217671",
