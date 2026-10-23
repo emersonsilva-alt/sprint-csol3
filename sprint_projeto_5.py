@@ -252,6 +252,22 @@ def carregar_dados_do_disco():
                 total_dias = 14 if tipo_sp == "Evolução" else 15
                 tarefas_tratadas = []
                 for t in sprint["tarefas"]:
+                    # Normalização flexível de chaves (maiúsculas/minúsculas vindas do JSON)
+                    if "ID" not in t and "id" in t:
+                        t["ID"] = str(t["id"])
+                    if "Tarefa" not in t and "tarefa" in t:
+                        t["Tarefa"] = t["tarefa"]
+                    if "Status" not in t and "status" in t:
+                        t["Status"] = t["status"]
+                    if "Profissional" not in t and "profissional" in t:
+                        t["Profissional"] = t["profissional"]
+                    if "SP" not in t and "sp" in t:
+                        t["SP"] = t["sp"]
+                    if "Pausada" not in t and "pausada" in t:
+                        t["Pausada"] = t["pausada"]
+                    if "Justificativa_Pausa" not in t and "justificativa_pausa" in t:
+                        t["Justificativa_Pausa"] = t["justificativa_pausa"]
+
                     if "Entra_BurnUp" not in t:
                         t["Entra_BurnUp"] = True
                     if "Tags" not in t or not isinstance(t["Tags"], list):
@@ -270,16 +286,17 @@ def carregar_dados_do_disco():
 
                 # Suporte flexível para data_fim ou data_termino
                 data_fim_str = sprint.get("data_fim") or sprint.get("data_termino")
+                data_inicio_str = sprint.get("data_inicio")
 
                 sprints_carregadas[nome_sprint] = {
                     "tipo_sprint": tipo_sp,
-                    "data_inicio": datetime.strptime(sprint["data_inicio"], "%Y-%m-%d").date(),
+                    "data_inicio": datetime.strptime(data_inicio_str, "%Y-%m-%d").date(),
                     "data_fim": datetime.strptime(data_fim_str, "%Y-%m-%d").date(),
                     "tarefas": tarefas_tratadas
                 }
             return sprints_carregadas
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Erro ao carregar dados do disco: {e}")
 
     data_inicio_padrao = datetime(2026, 7, 29).date()
     return {
@@ -320,7 +337,6 @@ def obter_sprint_padrao_principal(dt_hoje=None):
     ]
     
     if sprints_projetos:
-        # Retorna a última cadastrada/ordenada pelo dicionário (ou por data de início)
         sprints_projetos.sort(key=lambda x: x[1]["data_inicio"], reverse=True)
         return sprints_projetos[0][0]
         
@@ -348,9 +364,9 @@ def verificar_impedimentos(tarefa):
     if any(t in tags_limpas for t in ["aguardando informações", "aguardando informacao"]):
         alertas.append(f"Aguardando Informações{motivo_str}")
         
-    if tarefa.get("Pausada"):
-        just = tarefa.get("Justificativa_Pausa", "").strip()
-        just_str = f" - Motivo: {just}" if just else ""
+    if tarefa.get("Pausada") or tarefa.get("pausada"):
+        just = tarefa.get("Justificativa_Pausa", "") or tarefa.get("justificativa_pausa", "")
+        just_str = f" - Motivo: {just.strip()}" if just.strip() else ""
         alertas.append(f"Tarefa Pausada{just_str}")
             
     return alertas
@@ -413,20 +429,22 @@ def sincronizar_sprint_com_redmine(nome_sprint):
     if nome_sprint in st.session_state.sprints:
         tipo_sp = st.session_state.sprints[nome_sprint].get("tipo_sprint", "Projeto")
         for tarefa in st.session_state.sprints[nome_sprint]["tarefas"]:
-            dados_novos = buscar_dados_redmine(tarefa["ID"], tipo_sprint=tipo_sp)
-            if dados_novos:
-                tarefa["Status"] = dados_novos["Status"]
-                tarefa["Profissional"] = dados_novos["Profissional"]
-                tarefa["Tarefa"] = dados_novos["Tarefa"]
-                
-                tags_locais = [str(t).strip() for t in tarefa.get("Tags", []) if str(t).strip()]
-                tags_redmine = [str(t).strip() for t in dados_novos.get("Tags", []) if str(t).strip()]
-                
-                tags_unificadas = list(dict.fromkeys(tags_locais + tags_redmine))
-                tarefa["Tags"] = tags_unificadas
+            tid = tarefa.get("ID") or tarefa.get("id")
+            if tid:
+                dados_novos = buscar_dados_redmine(tid, tipo_sprint=tipo_sp)
+                if dados_novos:
+                    tarefa["Status"] = dados_novos["Status"]
+                    tarefa["Profissional"] = dados_novos["Profissional"]
+                    tarefa["Tarefa"] = dados_novos["Tarefa"]
+                    
+                    tags_locais = [str(t).strip() for t in tarefa.get("Tags", []) if str(t).strip()]
+                    tags_redmine = [str(t).strip() for t in dados_novos.get("Tags", []) if str(t).strip()]
+                    
+                    tags_unificadas = list(dict.fromkeys(tags_locais + tags_redmine))
+                    tarefa["Tags"] = tags_unificadas
 
-                if dados_novos["SP"] > 0:
-                    tarefa["SP"] = dados_novos["SP"]
+                    if dados_novos["SP"] > 0:
+                        tarefa["SP"] = dados_novos["SP"]
         salvar_dados_em_disco()
 
 def obter_situacao_e_estilo_sprint(profissional, status_redmine):
@@ -485,7 +503,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     )
 
     dados_sprint = st.session_state.sprints[nome_sprint]
-    tipo_sprint = dados_sprint.get("tipo_sprint", "Projeto")
     dt_fim_relatorio = dados_sprint['data_fim']
 
     # Cabeçalho com Logo
@@ -537,7 +554,9 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
         probs = verificar_impedimentos(t)
         if probs:
             status_str = ", ".join(probs)
-            impedimentos_text.append(f"• <b>#{t['ID']}</b> - {t['Tarefa']}<br/>&nbsp;&nbsp;&nbsp;&nbsp;<b>Status:</b> {status_str}")
+            tid = t.get("ID") or t.get("id")
+            ttitulo = t.get("Tarefa") or t.get("tarefa")
+            impedimentos_text.append(f"• <b>#{tid}</b> - {ttitulo}<br/>&nbsp;&nbsp;&nbsp;&nbsp;<b>Status:</b> {status_str}")
 
     txt_bloqueios = "<br/><br/>".join(impedimentos_text) if impedimentos_text else "Nenhum bloqueio ou impedimento ativo."
 
@@ -573,17 +592,20 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     ]
 
     for idx, t in enumerate(dados_sprint["tarefas"], start=1):
-        prof = t.get("Profissional", "-")
-        st_redmine = t.get("Status", "N/A")
+        prof = t.get("Profissional") or t.get("profissional", "-")
+        st_redmine = t.get("Status") or t.get("status", "N/A")
+        tid = t.get("ID") or t.get("id")
+        ttitulo = t.get("Tarefa") or t.get("tarefa", "")
+        tsp = t.get("SP") or t.get("sp", 5)
         
         sit_label, txt_color, c_bg = obter_situacao_e_estilo_sprint(prof, st_redmine)
         cell_sit = f'<font color="{txt_color}"><b>{sit_label}</b></font>'
         
         rows_tabela.append([
-            t["ID"],
-            Paragraph(t["Tarefa"][:50], style_normal),
+            tid,
+            Paragraph(ttitulo[:50], style_normal),
             Paragraph(prof, style_normal),
-            str(t.get("SP", 5)),
+            str(tsp),
             Paragraph(st_redmine, style_normal),
             Paragraph(cell_sit, style_normal)
         ])
@@ -596,7 +618,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
     story.append(t_tarefas)
     story.append(Spacer(1, 15))
 
-    # Gráficos no PDF (com tratamento caso kaleido não esteja instalado)
     if fig_sprint:
         try:
             img_bytes = fig_sprint.to_image(format="png", width=780, height=320)
@@ -780,7 +801,9 @@ with st.sidebar:
             for t in st.session_state.sprints[s_nome]["tarefas"]:
                 probs = verificar_impedimentos(t)
                 if probs:
-                    impedimentos_encontrados.append((s_nome, t["ID"], t["Tarefa"], ", ".join(probs)))
+                    tid = t.get("ID") or t.get("id")
+                    ttitulo = t.get("Tarefa") or t.get("tarefa", "")
+                    impedimentos_encontrados.append((s_nome, tid, ttitulo, ", ".join(probs)))
     
     if impedimentos_encontrados:
         st.error(f"🚨 **{len(impedimentos_encontrados)} Tarefa(s) Requerem Atenção:**")
@@ -915,7 +938,7 @@ else:
             with st.expander(f"🛠️ Gerenciar Tarefas ({nome_sprint}) - Editar, Pausar, Incluir ou Excluir", expanded=False):
                 tarefas_sprint = dados_sprint["tarefas"]
                 if tarefas_sprint:
-                    ids_t = [f"#{t['ID']} - {t['Tarefa'][:35]}..." for t in tarefas_sprint]
+                    ids_t = [f"#{t.get('ID') or t.get('id')} - {(t.get('Tarefa') or t.get('tarefa', ''))[:35]}..." for t in tarefas_sprint]
                     sel_t = st.selectbox("Selecione um(a):", ids_t, key=f"sel_gerenciar_{nome_sprint}")
                     idx_t = ids_t.index(sel_t)
                     tarefa_sel = tarefas_sprint[idx_t]
@@ -924,17 +947,29 @@ else:
 
                     with tab_editar:
                         with st.form(key=f"form_editar_{nome_sprint}_{idx_t}"):
-                            novo_titulo = st.text_input("Título:", value=tarefa_sel["Tarefa"])
+                            novo_titulo = st.text_input("Título:", value=tarefa_sel.get("Tarefa") or tarefa_sel.get("tarefa", ""))
                             col_e1, col_e2, col_e3 = st.columns(3)
-                            novo_status = col_e1.text_input("Status:", value=tarefa_sel["Status"])
-                            novo_sp = col_e2.number_input("SP (Story Points):", value=int(tarefa_sel.get("SP", 5)), min_value=1)
+                            novo_status = col_e1.text_input("Status:", value=tarefa_sel.get("Status") or tarefa_sel.get("status", ""))
+                            novo_sp = col_e2.number_input("SP (Story Points):", value=int(tarefa_sel.get("SP") or tarefa_sel.get("sp", 5)), min_value=1)
                             nova_branch = col_e3.text_input("Filial / Branch:", value=tarefa_sel.get("Branch", "aguardando"))
                             entra_bu = st.checkbox("Contabilizar esta tarefa nos Gráficos?", value=tarefa_sel.get("Entra_BurnUp", True))
 
                             if st.form_submit_button("💾 Salvar Alterações"):
-                                tarefa_sel["Tarefa"] = novo_titulo
-                                tarefa_sel["Status"] = novo_status
-                                tarefa_sel["SP"] = novo_sp
+                                if "Tarefa" in tarefa_sel or "tarefa" not in tarefa_sel:
+                                    tarefa_sel["Tarefa"] = novo_titulo
+                                else:
+                                    tarefa_sel["tarefa"] = novo_titulo
+                                
+                                if "Status" in tarefa_sel or "status" not in tarefa_sel:
+                                    tarefa_sel["Status"] = novo_status
+                                else:
+                                    tarefa_sel["status"] = novo_status
+
+                                if "SP" in tarefa_sel or "sp" not in tarefa_sel:
+                                    tarefa_sel["SP"] = novo_sp
+                                else:
+                                    tarefa_sel["sp"] = novo_sp
+
                                 tarefa_sel["Branch"] = nova_branch
                                 tarefa_sel["Entra_BurnUp"] = entra_bu
                                 salvar_dados_em_disco()
@@ -942,8 +977,8 @@ else:
                                 st.rerun()
 
                     with tab_pausar:
-                        status_pausa = st.checkbox("Pausar Tarefa", value=tarefa_sel.get("Pausada", False), key=f"chk_p_{nome_sprint}_{idx_t}")
-                        just = st.text_area("Justificativa*", value=tarefa_sel.get("Justificativa_Pausa", ""), key=f"txt_j_{nome_sprint}_{idx_t}")
+                        status_pausa = st.checkbox("Pausar Tarefa", value=tarefa_sel.get("Pausada") or tarefa_sel.get("pausada", False), key=f"chk_p_{nome_sprint}_{idx_t}")
+                        just = st.text_area("Justificativa*", value=tarefa_sel.get("Justificativa_Pausa") or tarefa_sel.get("justificativa_pausa", ""), key=f"txt_j_{nome_sprint}_{idx_t}")
                         
                         if st.button("Salvar Pausa", key=f"btn_p_{nome_sprint}_{idx_t}"):
                             if status_pausa:
@@ -1007,7 +1042,22 @@ else:
             st.subheader("📋 Tarefas da Sprint")
             st.caption("💡 *Marque ou desmarque a caixa **'Conta nos Gráficos?'** para definir em tempo real quais tarefas compõem a meta.*")
 
-            df_t = pd.DataFrame(dados_sprint["tarefas"])
+            # Mapeamento seguro para exibição no DataFrame
+            dados_exibicao = []
+            for t in dados_sprint["tarefas"]:
+                dados_exibicao.append({
+                    "ID": t.get("ID") or t.get("id"),
+                    "Status": t.get("Status") or t.get("status"),
+                    "Entra_BurnUp": t.get("Entra_BurnUp", True),
+                    "SP": t.get("SP") or t.get("sp", 5),
+                    "Tarefa": t.get("Tarefa") or t.get("tarefa", ""),
+                    "Branch": t.get("Branch", "aguardando"),
+                    "Profissional": t.get("Profissional") or t.get("profissional", "-"),
+                    "Pausada": t.get("Pausada") or t.get("pausada", False),
+                    "Justificativa_Pausa": t.get("Justificativa_Pausa") or t.get("justificativa_pausa", "")
+                })
+
+            df_t = pd.DataFrame(dados_exibicao)
             if not df_t.empty:
                 df_t_exibicao = df_t[["ID", "Status", "Entra_BurnUp", "SP", "Tarefa", "Branch", "Profissional", "Pausada", "Justificativa_Pausa"]]
 
@@ -1032,7 +1082,8 @@ else:
                     tid_str = str(row["ID"])
                     novo_val = bool(row["Entra_BurnUp"])
                     for t_item in dados_sprint["tarefas"]:
-                        if str(t_item["ID"]) == tid_str:
+                        t_id_atual = str(t_item.get("ID") or t_item.get("id"))
+                        if t_id_atual == tid_str:
                             if t_item.get("Entra_BurnUp") != novo_val:
                                 t_item["Entra_BurnUp"] = novo_val
                                 mudou = True
@@ -1049,11 +1100,11 @@ else:
             matriz = []
             for t in dados_sprint["tarefas"]:
                 row = {
-                    "ID": t["ID"], 
-                    "Tarefa": t["Tarefa"], 
-                    "Status": t["Status"],
-                    "SP": t.get("SP", 5),
-                    "Pausada": t.get("Pausada", False),
+                    "ID": t.get("ID") or t.get("id"), 
+                    "Tarefa": t.get("Tarefa") or t.get("tarefa", ""), 
+                    "Status": t.get("Status") or t.get("status", ""),
+                    "SP": t.get("SP") or t.get("sp", 5),
+                    "Pausada": t.get("Pausada") or t.get("pausada", False),
                     "Entra_BurnUp": t.get("Entra_BurnUp", True)
                 }
                 hist = t.get("historico_diario", {})
@@ -1094,7 +1145,8 @@ else:
                     tid_str = str(row["ID"])
                     target_task = None
                     for t_item in dados_sprint["tarefas"]:
-                        if str(t_item["ID"]) == tid_str:
+                        t_id_atual = str(t_item.get("ID") or t_item.get("id"))
+                        if t_id_atual == tid_str:
                             target_task = t_item
                             break
                     
@@ -1119,7 +1171,7 @@ else:
 
             # --- GRÁFICOS ---
             if not df_editado.empty:
-                tarefas_validas = [t for t in dados_sprint["tarefas"] if t.get("Entra_BurnUp", True) and not t.get("Pausada", False)]
+                tarefas_validas = [t for t in dados_sprint["tarefas"] if t.get("Entra_BurnUp", True) and not (t.get("Pausada") or t.get("pausada", False))]
                 fig_sprint = go.Figure()
 
                 ultimo_dia_com_lancamento = 0
@@ -1207,8 +1259,8 @@ else:
             # --- GRÁFICO DE ACOMPANHAMENTO DO PROFISSIONAL ---
             prof_data = []
             for t in dados_sprint["tarefas"]:
-                prof = t.get("Profissional", "-")
-                sp_val = int(t.get("SP", 5))
+                prof = t.get("Profissional") or t.get("profissional", "-")
+                sp_val = int(t.get("SP") or t.get("sp", 5))
                 prof_data.append({"Profissional": prof, "SP Planejado": sp_val})
 
             df_prof = pd.DataFrame(prof_data)
