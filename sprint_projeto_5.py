@@ -553,7 +553,34 @@ if "sprints" not in st.session_state:
 if "modal_inicial_exibido" not in st.session_state:
     st.session_state.modal_inicial_exibido = False
 
-# --- MODAIS ---
+# --- MODAIS DE GERENCIAMENTO ---
+@st.dialog("📝 Renomear Sprint")
+def modal_renomear_sprint(nome_atual):
+    st.write(f"Informe o novo nome para a **{nome_atual}**:")
+    novo_nome = st.text_input("Novo Nome da Sprint", value=nome_atual)
+    
+    col_salvar, col_cancelar = st.columns(2)
+    if col_salvar.button("💾 Confirmar", use_container_width=True):
+        novo_nome_limpo = novo_nome.strip()
+        if not novo_nome_limpo:
+            st.error("O nome não pode ser vazio.")
+        elif novo_nome_limpo != nome_atual and novo_nome_limpo in st.session_state.sprints:
+            st.error("Já existe uma Sprint com este nome!")
+        elif novo_nome_limpo != nome_atual:
+            # 1. Transfere dados na memória
+            dados_sprint = st.session_state.sprints.pop(nome_atual)
+            st.session_state.sprints[novo_nome_limpo] = dados_sprint
+            
+            # 2. Deleta o nome antigo no Supabase e insere com o novo nome
+            try:
+                supabase.table("sprints_store").delete().eq("nome_sprint", nome_atual).execute()
+            except Exception as e:
+                st.error(f"Erro ao atualizar registro antigo no Supabase: {e}")
+                
+            salvar_dados_em_disco()
+            st.success(f"Sprint renomeada para '{novo_nome_limpo}' com sucesso!")
+            st.rerun()
+
 @st.dialog("Ajustar Sprint?")
 def modal_inicial():
     sprints_disponiveis = list(st.session_state.sprints.keys())
@@ -789,7 +816,7 @@ else:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    col_sel, col_ren, col_del = st.columns([4, 5, 3])
+    col_sel, col_ren, col_del = st.columns([6, 3, 3])
     
     with col_sel:
         nome_sprint = st.selectbox(
@@ -805,22 +832,24 @@ else:
         total_dias_sprint = 14 if tipo_sprint == "Evolução" else 15
 
         with col_ren:
-            novo_nome_input = st.text_input("📝 **Renomear Sprint:**", value=nome_sprint, key=f"ren_input_{nome_sprint}")
-            if novo_nome_input.strip() and novo_nome_input.strip() != nome_sprint:
-                if novo_nome_input.strip() in st.session_state.sprints:
-                    st.error("Já existe uma Sprint com esse nome!")
-                else:
-                    st.session_state.sprints[novo_nome_input.strip()] = st.session_state.sprints.pop(nome_sprint)
-                    salvar_dados_em_disco()
-                    st.success(f"Sprint renomeada para '{novo_nome_input.strip()}'!")
-                    st.rerun()
+            st.write("") 
+            st.write("")
+            if st.button("📝 Renomear Sprint", key=f"btn_ren_sprint_{nome_sprint}", use_container_width=True):
+                modal_renomear_sprint(nome_sprint)
 
         with col_del:
             st.write("") 
             st.write("")
             if st.button("🗑️ Excluir Sprint", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
+                # 1. Remove da memória
                 del st.session_state.sprints[nome_sprint]
-                salvar_dados_em_disco()
+                
+                # 2. Exclui permanentemente do Supabase
+                try:
+                    supabase.table("sprints_store").delete().eq("nome_sprint", nome_sprint).execute()
+                except Exception as e:
+                    st.error(f"Erro ao remover sprint do Supabase: {e}")
+                
                 st.success(f"Sprint '{nome_sprint}' excluída com sucesso!")
                 st.rerun()
 
