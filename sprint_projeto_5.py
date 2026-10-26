@@ -8,6 +8,7 @@ import os
 import json
 import io
 from datetime import datetime, timedelta
+from supabase import create_client, Client
 
 # Desabilita avisos SSL para redes internas da PRODEB
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -20,6 +21,12 @@ from reportlab.lib import colors
 
 # Configuração da página
 st.set_page_config(page_title="Gestor de Sprints PRODEB", layout="wide")
+
+# --- CONEXÃO COM O SUPABASE (Lê do secrets.toml) ---
+SUPABASE_URL = st.secrets["supabase"]["url"]
+SUPABASE_KEY = st.secrets["supabase"]["key"]
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Lista de Feriados Nacionais / Locais Fixos (YYYY-MM-DD ou MM-DD)
 FERIADOS_FIXOS = [
@@ -147,7 +154,7 @@ def aplicar_estilo_prodeb():
             font-weight: 700 !important;
         }
 
-        /* ANula e oculta totalmente a barra colorida padrão do BaseWeb */
+        /* Anula e oculta totalmente a barra colorida padrão do BaseWeb */
         div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
             background-color: #FFFFFF !important;
             background: #FFFFFF !important;
@@ -198,42 +205,39 @@ REDMINE_URL = "https://redmine.prodeb.ba.gov.br"
 REDMINE_API_KEY = "29247a38237c8f81a65844de91d52c016cc9a8d9"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 PATH_LOGO_PRODEB = os.path.join(BASE_DIR, "Logo_Prodeb.jpeg")
-PATH_ARQUIVO_DADOS = os.path.join(BASE_DIR, "sprints_data.json")
 
-# --- PERSISTÊNCIA EM DISCO ---
+# --- PERSISTÊNCIA NO SUPABASE (Nuvem - Nunca perde dados ao reiniciar) ---
 def salvar_dados_em_disco():
     try:
-        diretorio = os.path.dirname(PATH_ARQUIVO_DADOS)
-        if diretorio:
-            os.makedirs(diretorio, exist_ok=True)
-            
-        dados_para_salvar = {}
         for nome_sprint, sprint in st.session_state.sprints.items():
-            dados_para_salvar[nome_sprint] = {
+            payload = {
+                "nome_sprint": nome_sprint,
                 "tipo_sprint": sprint.get("tipo_sprint", "Projeto"),
                 "data_inicio": sprint["data_inicio"].strftime("%Y-%m-%d"),
                 "data_fim": sprint["data_fim"].strftime("%Y-%m-%d"),
-                "tarefas": sprint["tarefas"]
+                "tarefas": sprint["tarefas"],
+                "atualizado_em": datetime.now().isoformat()
             }
-        with open(PATH_ARQUIVO_DADOS, "w", encoding="utf-8") as f:
-            json.dump(dados_para_salvar, f, ensure_ascii=False, indent=4)
+            # Upsert para inserir ou atualizar baseado no nome da sprint
+            supabase.table("sprints_store").upsert(payload, on_conflict="nome_sprint").execute()
     except Exception as e:
-        print(f"Erro ao salvar dados em disco: {e}")
+        st.error(f"Erro ao salvar dados no Supabase: {e}")
 
 def carregar_dados_do_disco():
-    if os.path.exists(PATH_ARQUIVO_DADOS):
-        try:
-            with open(PATH_ARQUIVO_DADOS, "r", encoding="utf-8") as f:
-                dados_json = json.load(f)
-            
+    try:
+        response = supabase.table("sprints_store").select("*").execute()
+        dados_tabela = response.data
+        
+        if dados_tabela and len(dados_tabela) > 0:
             sprints_carregadas = {}
-            for nome_sprint, sprint in dados_json.items():
-                tipo_sp = sprint.get("tipo_sprint", "Projeto")
+            for item in dados_tabela:
+                nome_sprint = item["nome_sprint"]
+                tipo_sp = item.get("tipo_sprint", "Projeto")
                 total_dias = 14 if tipo_sp == "Evolução" else 15
+                
                 tarefas_tratadas = []
-                for t in sprint["tarefas"]:
+                for t in item["tarefas"]:
                     if "ID" not in t and "id" in t:
                         t["ID"] = str(t["id"])
                     if "Tarefa" not in t and "tarefa" in t:
@@ -265,19 +269,17 @@ def carregar_dados_do_disco():
                     ]
                     tarefas_tratadas.append(t)
 
-                data_fim_str = sprint.get("data_fim") or sprint.get("data_termino")
-                data_inicio_str = sprint.get("data_inicio")
-
                 sprints_carregadas[nome_sprint] = {
                     "tipo_sprint": tipo_sp,
-                    "data_inicio": datetime.strptime(data_inicio_str, "%Y-%m-%d").date(),
-                    "data_fim": datetime.strptime(data_fim_str, "%Y-%m-%d").date(),
+                    "data_inicio": datetime.strptime(item["data_inicio"], "%Y-%m-%d").date(),
+                    "data_fim": datetime.strptime(item["data_fim"], "%Y-%m-%d").date(),
                     "tarefas": tarefas_tratadas
                 }
             return sprints_carregadas
-        except Exception as e:
-            print(f"Erro ao carregar dados do disco: {e}")
+    except Exception as e:
+        st.warning(f"Aviso ao carregar do Supabase (utilizando padrão): {e}")
 
+    # Fallback padrão caso a tabela esteja vazia
     data_inicio_padrao = datetime(2026, 7, 29).date()
     return {
         "Sprint 7": {
