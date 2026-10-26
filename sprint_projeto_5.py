@@ -79,7 +79,7 @@ def gerar_dias_uteis_lista(data_inicio, total_dias=15):
         atual += timedelta(days=1)
     return dias
 
-# --- ESTILIZAÇÃO COMPATÍVEL COM DARK/LIGHT MODE E ABAS NO FORMATO DO PRINT ---
+# --- ESTILIZAÇÃO COMPATÍVEL COM DARK/LIGHT MODE ---
 def aplicar_estilo_prodeb():
     st.markdown("""
         <style>
@@ -102,69 +102,6 @@ def aplicar_estilo_prodeb():
 
         section[data-testid="stSidebar"] hr {
             border-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        /* ESTILIZAÇÃO DAS ABAS */
-        div[data-testid="stTabs"] {
-            margin-top: 15px !important;
-            margin-bottom: 25px !important;
-        }
-
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-            gap: 6px !important;
-            background-color: transparent !important;
-            padding: 4px 4px 0px 4px !important;
-            border-bottom: 4px solid #0066CC !important;
-        }
-
-        div[data-testid="stTabs"] [data-baseweb="tab"] {
-            height: 40px !important;
-            background: linear-gradient(180deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-            border-radius: 12px 12px 0px 0px !important;
-            color: #334155 !important;
-            font-weight: 600 !important;
-            padding: 0px 22px !important;
-            border: 1px solid #CBD5E1 !important;
-            border-bottom: none !important;
-            transition: all 0.2s ease-in-out !important;
-            margin-bottom: -4px !important;
-        }
-
-        /* Hover nas Abas Inativas */
-        div[data-testid="stTabs"] [data-baseweb="tab"]:hover {
-            background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%) !important;
-            color: #0F172A !important;
-        }
-
-        /* Aba Selecionada / Ativa */
-        div[data-testid="stTabs"] [aria-selected="true"] {
-            background: linear-gradient(180deg, #0088FF 0%, #0055B3 100%) !important;
-            color: #FFFFFF !important;
-            border: 1px solid #004499 !important;
-            border-bottom: none !important;
-            position: relative !important;
-            z-index: 3 !important;
-            box-shadow: 0px -3px 8px rgba(0, 102, 204, 0.4) !important;
-            transform: translateY(-2px) !important;
-        }
-
-        div[data-testid="stTabs"] [aria-selected="true"] p,
-        div[data-testid="stTabs"] [aria-selected="true"] span {
-            color: #FFFFFF !important;
-            font-weight: 700 !important;
-        }
-
-        /* Anula e oculta totalmente a barra colorida padrão do BaseWeb */
-        div[data-testid="stTabs"] div[data-baseweb="tab-highlight"] {
-            background-color: #FFFFFF !important;
-            background: #FFFFFF !important;
-            transform: none !important;
-            height: 2px !important;
-        }
-
-        /* Oculta qualquer indicador flutuante excedente */
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] > div:last-child {
-            background-color: #FFFFFF !important;
         }
 
         /* Métricas e Botões Padrão */
@@ -207,7 +144,7 @@ REDMINE_API_KEY = "29247a38237c8f81a65844de91d52c016cc9a8d9"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_LOGO_PRODEB = os.path.join(BASE_DIR, "Logo_Prodeb.jpeg")
 
-# --- PERSISTÊNCIA NO SUPABASE (Nuvem - Nunca perde dados ao reiniciar) ---
+# --- PERSISTÊNCIA NO SUPABASE ---
 def salvar_dados_em_disco():
     try:
         for nome_sprint, sprint in st.session_state.sprints.items():
@@ -219,7 +156,6 @@ def salvar_dados_em_disco():
                 "tarefas": sprint["tarefas"],
                 "atualizado_em": datetime.now().isoformat()
             }
-            # Upsert para inserir ou atualizar baseado no nome da sprint
             supabase.table("sprints_store").upsert(payload, on_conflict="nome_sprint").execute()
     except Exception as e:
         st.error(f"Erro ao salvar dados no Supabase: {e}")
@@ -279,7 +215,6 @@ def carregar_dados_do_disco():
     except Exception as e:
         st.warning(f"Aviso ao carregar do Supabase (utilizando padrão): {e}")
 
-    # Fallback padrão caso a tabela esteja vazia
     data_inicio_padrao = datetime(2026, 7, 29).date()
     return {
         "Sprint 7": {
@@ -840,445 +775,456 @@ with col_head2:
     if st.button("➕ Criar Nova Sprint", use_container_width=True):
         modal_criar_sprint()
 
-# --- ABAS DE SPRINTS (FORMATO DE BOTÕES DE MENU FIÉIS AO PRINT COM LINHA BRANCA) ---
+st.markdown("---")
+
+# --- SELETOR DE SPRINTS (FORMATO DROPDOWN / MENU SUSPENSO) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
     st.warning("Nenhuma Sprint cadastrada. Clique em '➕ Criar Nova Sprint' para começar.")
 else:
+    # Garante a regra atual: seleciona por padrão a sprint ativa ou principal em andamento
     sprint_padrao_nome = obter_sprint_padrao_principal()
     
     if sprint_padrao_nome and sprint_padrao_nome in nomes_sprints:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    abas = st.tabs(nomes_sprints)
+    col_drop1, col_drop2 = st.columns([6, 6])
+    with col_drop1:
+        nome_sprint = st.selectbox(
+            "📋 **Selecione a Sprint Ativa / Visualização:**",
+            options=nomes_sprints,
+            index=0,
+            key="selectbox_sprint_principal"
+        )
 
-    for idx_aba, nome_sprint in enumerate(nomes_sprints):
-        with abas[idx_aba]:
-            dados_sprint = st.session_state.sprints[nome_sprint]
-            tipo_sprint = dados_sprint.get("tipo_sprint", "Projeto")
-            total_dias_sprint = 14 if tipo_sprint == "Evolução" else 15
+    if nome_sprint:
+        dados_sprint = st.session_state.sprints[nome_sprint]
+        tipo_sprint = dados_sprint.get("tipo_sprint", "Projeto")
+        total_dias_sprint = 14 if tipo_sprint == "Evolução" else 15
 
-            col_ren_1, col_ren_2, col_ren_3 = st.columns([5, 3, 2])
-            with col_ren_1:
-                novo_nome_input = st.text_input("📝 Nome da Aba / Sprint:", value=nome_sprint, key=f"ren_input_{nome_sprint}")
-                if novo_nome_input.strip() and novo_nome_input.strip() != nome_sprint:
-                    if novo_nome_input.strip() in st.session_state.sprints:
-                        st.error("Já existe uma Sprint com esse nome!")
-                    else:
-                        st.session_state.sprints[novo_nome_input.strip()] = st.session_state.sprints.pop(nome_sprint)
-                        salvar_dados_em_disco()
-                        st.success(f"Sprint renomeada para '{novo_nome_input.strip()}'!")
-                        st.rerun()
+        st.markdown("---")
 
-            with col_ren_3:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ Excluir Sprint", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
-                    del st.session_state.sprints[nome_sprint]
+        col_ren_1, col_ren_2, col_ren_3 = st.columns([5, 3, 2])
+        with col_ren_1:
+            novo_nome_input = st.text_input("📝 Renomear Sprint Atual:", value=nome_sprint, key=f"ren_input_{nome_sprint}")
+            if novo_nome_input.strip() and novo_nome_input.strip() != nome_sprint:
+                if novo_nome_input.strip() in st.session_state.sprints:
+                    st.error("Já existe uma Sprint com esse nome!")
+                else:
+                    st.session_state.sprints[novo_nome_input.strip()] = st.session_state.sprints.pop(nome_sprint)
                     salvar_dados_em_disco()
-                    st.success(f"Sprint '{nome_sprint}' excluída com sucesso!")
+                    st.success(f"Sprint renomeada para '{novo_nome_input.strip()}'!")
                     st.rerun()
 
-            st.markdown("---")
+        with col_ren_3:
+            st.write("")
+            st.write("")
+            if st.button("🗑️ Excluir Sprint", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
+                del st.session_state.sprints[nome_sprint]
+                salvar_dados_em_disco()
+                st.success(f"Sprint '{nome_sprint}' excluída com sucesso!")
+                st.rerun()
 
-            dt_inicio = dados_sprint["data_inicio"]
-            dt_fim = dados_sprint["data_fim"]
-            dias_uteis_lista = gerar_dias_uteis_lista(dt_inicio, total_dias_sprint)
-            
-            dev_days_idx = 12 if tipo_sprint == "Evolução" else 9
-            dt_fim_dev = dias_uteis_lista[dev_days_idx]
+        st.markdown("---")
 
-            col_m1, col_m2, col_m3, col_m4 = st.columns([3, 3, 3, 2])
-            col_m1.metric("🗓️ Início da Sprint", dt_inicio.strftime("%d/%m/%Y"), delta=f"Tipo: {tipo_sprint}")
-            
-            if tipo_sprint == "Evolução":
-                col_m2.metric("🛠️ Fim Dev (13º Dia Útil)", dt_fim_dev.strftime("%d/%m/%Y"))
-                col_m3.metric("🧪 Validação PO (14º Dia Útil)", dt_fim.strftime("%d/%m/%Y"))
-            else:
-                col_m2.metric("🛠️ Fim Dev (10º Dia Útil)", dt_fim_dev.strftime("%d/%m/%Y"))
-                col_m3.metric("🧪 Fim PO/Qualidade (15º Dia Útil)", dt_fim.strftime("%d/%m/%Y"))
+        dt_inicio = dados_sprint["data_inicio"]
+        dt_fim = dados_sprint["data_fim"]
+        dias_uteis_lista = gerar_dias_uteis_lista(dt_inicio, total_dias_sprint)
+        
+        dev_days_idx = 12 if tipo_sprint == "Evolução" else 9
+        dt_fim_dev = dias_uteis_lista[dev_days_idx]
 
-            with col_m4:
-                st.write("")
-                if st.button("🔄 Sincronizar Redmine", key=f"btn_sync_{nome_sprint}", use_container_width=True):
-                    with st.spinner("🔄 Atualizando dados com o Redmine..."):
-                        sincronizar_sprint_com_redmine(nome_sprint)
-                        st.success("Sincronização concluída!")
-                        st.rerun()
+        col_m1, col_m2, col_m3, col_m4 = st.columns([3, 3, 3, 2])
+        col_m1.metric("🗓️ Início da Sprint", dt_inicio.strftime("%d/%m/%Y"), delta=f"Tipo: {tipo_sprint}")
+        
+        if tipo_sprint == "Evolução":
+            col_m2.metric("🛠️ Fim Dev (13º Dia Útil)", dt_fim_dev.strftime("%d/%m/%Y"))
+            col_m3.metric("🧪 Validação PO (14º Dia Útil)", dt_fim.strftime("%d/%m/%Y"))
+        else:
+            col_m2.metric("🛠️ Fim Dev (10º Dia Útil)", dt_fim_dev.strftime("%d/%m/%Y"))
+            col_m3.metric("🧪 Fim PO/Qualidade (15º Dia Útil)", dt_fim.strftime("%d/%m/%Y"))
 
-            st.markdown("---")
+        with col_m4:
+            st.write("")
+            if st.button("🔄 Sincronizar Redmine", key=f"btn_sync_{nome_sprint}", use_container_width=True):
+                with st.spinner("🔄 Atualizando dados com o Redmine..."):
+                    sincronizar_sprint_com_redmine(nome_sprint)
+                    st.success("Sincronização concluída!")
+                    st.rerun()
 
-            # --- GESTÃO DE TAREFAS ---
-            with st.expander(f"🛠️ Gerenciar Tarefas ({nome_sprint}) - Editar, Pausar, Incluir ou Excluir", expanded=False):
-                tarefas_sprint = dados_sprint["tarefas"]
-                if tarefas_sprint:
-                    ids_t = [f"#{t.get('ID') or t.get('id')} - {(t.get('Tarefa') or t.get('tarefa', ''))[:35]}..." for t in tarefas_sprint]
-                    sel_t = st.selectbox("Selecione um(a):", ids_t, key=f"sel_gerenciar_{nome_sprint}")
-                    idx_t = ids_t.index(sel_t)
-                    tarefa_sel = tarefas_sprint[idx_t]
+        st.markdown("---")
 
-                    tab_editar, tab_pausar, tab_tags, tab_excluir = st.tabs(["✏️ Editar Tarefa", "⏸️ Pausar Tarefa", "🏷️ TAGs", "🗑️ Excluir Tarefa"])
+        # --- GESTÃO DE TAREFAS ---
+        with st.expander(f"🛠️ Gerenciar Tarefas ({nome_sprint}) - Editar, Pausar, Incluir ou Excluir", expanded=False):
+            tarefas_sprint = dados_sprint["tarefas"]
+            if tarefas_sprint:
+                ids_t = [f"#{t.get('ID') or t.get('id')} - {(t.get('Tarefa') or t.get('tarefa', ''))[:35]}..." for t in tarefas_sprint]
+                sel_t = st.selectbox("Selecione um(a):", ids_t, key=f"sel_gerenciar_{nome_sprint}")
+                idx_t = ids_t.index(sel_t)
+                tarefa_sel = tarefas_sprint[idx_t]
 
-                    with tab_editar:
-                        with st.form(key=f"form_editar_{nome_sprint}_{idx_t}"):
-                            novo_titulo = st.text_input("Título:", value=tarefa_sel.get("Tarefa") or tarefa_sel.get("tarefa", ""))
-                            col_e1, col_e2, col_e3 = st.columns(3)
-                            novo_status = col_e1.text_input("Status:", value=tarefa_sel.get("Status") or tarefa_sel.get("status", ""))
-                            novo_sp = col_e2.number_input("SP (Story Points):", value=int(tarefa_sel.get("SP") or tarefa_sel.get("sp", 5)), min_value=1)
-                            nova_branch = col_e3.text_input("Filial / Branch:", value=tarefa_sel.get("Branch", "aguardando"))
-                            entra_bu = st.checkbox("Contabilizar esta tarefa nos Gráficos?", value=tarefa_sel.get("Entra_BurnUp", True))
+                tab_editar, tab_pausar, tab_tags, tab_excluir = st.tabs(["✏️ Editar Tarefa", "⏸️ Pausar Tarefa", "🏷️ TAGs", "🗑️ Excluir Tarefa"])
 
-                            if st.form_submit_button("💾 Salvar Alterações"):
-                                if "Tarefa" in tarefa_sel or "tarefa" not in tarefa_sel:
-                                    tarefa_sel["Tarefa"] = novo_titulo
-                                else:
-                                    tarefa_sel["tarefa"] = novo_titulo
-                                
-                                if "Status" in tarefa_sel or "status" not in tarefa_sel:
-                                    tarefa_sel["Status"] = novo_status
-                                else:
-                                    tarefa_sel["status"] = novo_status
+                with tab_editar:
+                    with st.form(key=f"form_editar_{nome_sprint}_{idx_t}"):
+                        novo_titulo = st.text_input("Título:", value=tarefa_sel.get("Tarefa") or tarefa_sel.get("tarefa", ""))
+                        col_e1, col_e2, col_e3 = st.columns(3)
+                        novo_status = col_e1.text_input("Status:", value=tarefa_sel.get("Status") or tarefa_sel.get("status", ""))
+                        novo_sp = col_e2.number_input("SP (Story Points):", value=int(tarefa_sel.get("SP") or tarefa_sel.get("sp", 5)), min_value=1)
+                        nova_branch = col_e3.text_input("Filial / Branch:", value=tarefa_sel.get("Branch", "aguardando"))
+                        entra_bu = st.checkbox("Contabilizar esta tarefa nos Gráficos?", value=tarefa_sel.get("Entra_BurnUp", True))
 
-                                if "SP" in tarefa_sel or "sp" not in tarefa_sel:
-                                    tarefa_sel["SP"] = novo_sp
-                                else:
-                                    tarefa_sel["sp"] = novo_sp
-
-                                tarefa_sel["Branch"] = nova_branch
-                                tarefa_sel["Entra_BurnUp"] = entra_bu
-                                salvar_dados_em_disco()
-                                st.success("Alterações salvas!")
-                                st.rerun()
-
-                    with tab_pausar:
-                        status_pausa = st.checkbox("Pausar Tarefa", value=tarefa_sel.get("Pausada") or tarefa_sel.get("pausada", False), key=f"chk_p_{nome_sprint}_{idx_t}")
-                        just = st.text_area("Justificativa*", value=tarefa_sel.get("Justificativa_Pausa") or tarefa_sel.get("justificativa_pausa", ""), key=f"txt_j_{nome_sprint}_{idx_t}")
-                        
-                        if st.button("Salvar Pausa", key=f"btn_p_{nome_sprint}_{idx_t}"):
-                            if status_pausa:
-                                if not just.strip():
-                                    st.error("⚠️ Justificativa é obrigatória para pausar a tarefa!")
-                                else:
-                                    tarefa_sel["Pausada"] = True
-                                    tarefa_sel["Justificativa_Pausa"] = just.strip()
-                                    salvar_dados_em_disco()
-                                    st.success("Tarefa pausada com sucesso!")
-                                    st.rerun()
+                        if st.form_submit_button("💾 Salvar Alterações"):
+                            if "Tarefa" in tarefa_sel or "tarefa" not in tarefa_sel:
+                                tarefa_sel["Tarefa"] = novo_titulo
                             else:
-                                tarefa_sel["Pausada"] = False
-                                tarefa_sel["Justificativa_Pausa"] = ""
-                                salvar_dados_em_disco()
-                                st.success("Pausa removida! Tarefa reativada.")
-                                st.rerun()
-
-                    with tab_tags:
-                        tags_atuais_norm = [str(t).strip().lower() for t in tarefa_sel.get("Tags", [])]
-                        
-                        is_imp = "impedimento" in tags_atuais_norm
-                        is_inf = any(t in tags_atuais_norm for t in ["aguardando informações", "aguardando informacao"])
-
-                        has_imp = st.checkbox("TAG: Impedimento", value=is_imp, key=f"tag_imp_{nome_sprint}_{idx_t}")
-                        has_inf = st.checkbox("TAG: Aguardando Informações", value=is_inf, key=f"tag_inf_{nome_sprint}_{idx_t}")
-                        
-                        motivo_tag_atual = tarefa_sel.get("Motivo_TAG", "")
-                        motivo_input = ""
-                        
-                        if has_imp or has_inf:
-                            motivo_input = st.text_area(
-                                "Informe o motivo do Impedimento / Aguardando Informação*",
-                                value=motivo_tag_atual,
-                                key=f"txt_motivo_tag_{nome_sprint}_{idx_t}",
-                                placeholder="Descreva os detalhes do bloqueio ou informação faltante..."
-                            )
-
-                        if st.button("Salvar TAGs", key=f"btn_tags_{nome_sprint}_{idx_t}"):
-                            novas = []
-                            if has_imp:
-                                novas.append("Impedimento")
-                            if has_inf:
-                                novas.append("Aguardando Informações")
+                                tarefa_sel["tarefa"] = novo_titulo
                             
-                            st.session_state.sprints[nome_sprint]["tarefas"][idx_t]["Tags"] = novas
-                            st.session_state.sprints[nome_sprint]["tarefas"][idx_t]["Motivo_TAG"] = motivo_input.strip() if (has_imp or has_inf) else ""
-                            
+                            if "Status" in tarefa_sel or "status" not in tarefa_sel:
+                                tarefa_sel["Status"] = novo_status
+                            else:
+                                tarefa_sel["status"] = novo_status
+
+                            if "SP" in tarefa_sel or "sp" not in tarefa_sel:
+                                tarefa_sel["SP"] = novo_sp
+                            else:
+                                tarefa_sel["sp"] = novo_sp
+
+                            tarefa_sel["Branch"] = nova_branch
+                            tarefa_sel["Entra_BurnUp"] = entra_bu
                             salvar_dados_em_disco()
-                            st.success("TAGs salvas com sucesso!")
+                            st.success("Alterações salvas!")
                             st.rerun()
 
-                    with tab_excluir:
-                        if st.button("🚨 Confirmar Exclusão", key=f"btn_del_{nome_sprint}_{idx_t}", type="primary"):
-                            dados_sprint["tarefas"].pop(idx_t)
-                            salvar_dados_em_disco()
-                            st.success("Tarefa excluída!")
-                            st.rerun()
-
-            # --- TABELA INTERATIVA ---
-            st.subheader("📋 Tarefas da Sprint")
-            st.caption("💡 *Marque ou desmarque a caixa **'Conta nos Gráficos?'** para definir em tempo real quais tarefas compõem a meta.*")
-
-            dados_exibicao = []
-            for t in dados_sprint["tarefas"]:
-                dados_exibicao.append({
-                    "ID": t.get("ID") or t.get("id"),
-                    "Status": t.get("Status") or t.get("status"),
-                    "Entra_BurnUp": t.get("Entra_BurnUp", True),
-                    "SP": t.get("SP") or t.get("sp", 5),
-                    "Tarefa": t.get("Tarefa") or t.get("tarefa", ""),
-                    "Branch": t.get("Branch", "aguardando"),
-                    "Profissional": t.get("Profissional") or t.get("profissional", "-"),
-                    "Pausada": t.get("Pausada") or t.get("pausada", False),
-                    "Justificativa_Pausa": t.get("Justificativa_Pausa") or t.get("justificativa_pausa", "")
-                })
-
-            df_t = pd.DataFrame(dados_exibicao)
-            if not df_t.empty:
-                df_t_exibicao = df_t[["ID", "Status", "Entra_BurnUp", "SP", "Tarefa", "Branch", "Profissional", "Pausada", "Justificativa_Pausa"]]
-
-                df_editado_tabela = st.data_editor(
-                    df_t_exibicao,
-                    key=f"editor_tarefas_check_{nome_sprint}",
-                    disabled=["ID", "Status", "SP", "Tarefa", "Branch", "Profissional", "Pausada", "Justificativa_Pausa"],
-                    column_config={
-                        "Entra_BurnUp": st.column_config.CheckboxColumn(
-                            "Conta nos Gráficos?",
-                            help="Marque para incluir no gráfico da Sprint",
-                            default=True,
-                        ),
-                        "Tarefa": st.column_config.TextColumn("Tarefa", width="large")
-                    },
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                mudou = False
-                for _, row in df_editado_tabela.iterrows():
-                    tid_str = str(row["ID"])
-                    novo_val = bool(row["Entra_BurnUp"])
-                    for t_item in dados_sprint["tarefas"]:
-                        t_id_atual = str(t_item.get("ID") or t_item.get("id"))
-                        if t_id_atual == tid_str:
-                            if t_item.get("Entra_BurnUp") != novo_val:
-                                t_item["Entra_BurnUp"] = novo_val
-                                mudou = True
-                            break
-                
-                if mudou:
-                    salvar_dados_em_disco()
-                    st.rerun()
-
-            # --- LANÇAMENTO DIÁRIO ---
-            st.subheader("📝 Evolução Diária por Tarefa (% Concluído)")
-            colunas_dias = [f"Dia {i} ({dias_uteis_lista[i-1].strftime('%d/%m')})" for i in range(1, total_dias_sprint + 1)]
-
-            matriz = []
-            for t in dados_sprint["tarefas"]:
-                row = {
-                    "ID": t.get("ID") or t.get("id"), 
-                    "Tarefa": t.get("Tarefa") or t.get("tarefa", ""), 
-                    "Status": t.get("Status") or t.get("status", ""),
-                    "SP": t.get("SP") or t.get("sp", 5),
-                    "Pausada": t.get("Pausada") or t.get("pausada", False),
-                    "Entra_BurnUp": t.get("Entra_BurnUp", True)
-                }
-                hist = t.get("historico_diario", {})
-                for d in range(1, total_dias_sprint + 1):
-                    col_name = colunas_dias[d-1]
-                    val = hist.get(f"Dia {d}", 0)
-                    row[col_name] = int(val) if (val is not None and str(val).isdigit()) else 0
-                matriz.append(row)
-
-            df_m_novo = pd.DataFrame(matriz)
-            df_editado = pd.DataFrame()
-
-            if not df_m_novo.empty:
-                config_colunas = {
-                    "Tarefa": st.column_config.TextColumn("Tarefa", width="large")
-                }
-                for col in colunas_dias:
-                    config_colunas[col] = st.column_config.NumberColumn(
-                        col,
-                        min_value=0,
-                        max_value=100,
-                        step=5,
-                        default=0,
-                        format="%d%%"
-                    )
-
-                df_editado = st.data_editor(
-                    df_m_novo,
-                    disabled=["ID", "Tarefa", "Status", "SP", "Pausada", "Entra_BurnUp"],
-                    hide_index=True,
-                    use_container_width=True,
-                    column_config=config_colunas,
-                    key=f"editor_dias_{nome_sprint}"
-                )
-
-                alterado = False
-                for _, row in df_editado.iterrows():
-                    tid_str = str(row["ID"])
-                    target_task = None
-                    for t_item in dados_sprint["tarefas"]:
-                        t_id_atual = str(t_item.get("ID") or t_item.get("id"))
-                        if t_id_atual == tid_str:
-                            target_task = t_item
-                            break
+                with tab_pausar:
+                    status_pausa = st.checkbox("Pausar Tarefa", value=tarefa_sel.get("Pausada") or tarefa_sel.get("pausada", False), key=f"chk_p_{nome_sprint}_{idx_t}")
+                    just = st.text_area("Justificativa*", value=tarefa_sel.get("Justificativa_Pausa") or tarefa_sel.get("justificativa_pausa", ""), key=f"txt_j_{nome_sprint}_{idx_t}")
                     
-                    if target_task is not None:
-                        for d in range(1, total_dias_sprint + 1):
-                            col_nome = colunas_dias[d-1]
-                            raw_val = row[col_nome]
-                            try:
-                                novo_val = int(raw_val) if pd.notna(raw_val) else 0
-                            except (ValueError, TypeError):
-                                novo_val = 0
-                            
-                            if target_task["historico_diario"].get(f"Dia {d}") != novo_val:
-                                target_task["historico_diario"][f"Dia {d}"] = novo_val
-                                alterado = True
+                    if st.button("Salvar Pausa", key=f"btn_p_{nome_sprint}_{idx_t}"):
+                        if status_pausa:
+                            if not just.strip():
+                                st.error("⚠️ Justificativa é obrigatória para pausar a tarefa!")
+                            else:
+                                tarefa_sel["Pausada"] = True
+                                tarefa_sel["Justificativa_Pausa"] = just.strip()
+                                salvar_dados_em_disco()
+                                st.success("Tarefa pausada com sucesso!")
+                                st.rerun()
+                        else:
+                            tarefa_sel["Pausada"] = False
+                            tarefa_sel["Justificativa_Pausa"] = ""
+                            salvar_dados_em_disco()
+                            st.success("Pausa removida! Tarefa reativada.")
+                            st.rerun()
 
-                if alterado:
-                    salvar_dados_em_disco()
-                    st.rerun()
-            else:
-                st.info("ℹ️ Nenhuma tarefa cadastrada nesta Sprint para exibir a evolução diária.")
+                with tab_tags:
+                    tags_atuais_norm = [str(t).strip().lower() for t in tarefa_sel.get("Tags", [])]
+                    
+                    is_imp = "impedimento" in tags_atuais_norm
+                    is_inf = any(t in tags_atuais_norm for t in ["aguardando informações", "aguardando informacao"])
 
-            # --- GRÁFICOS ---
-            if not df_editado.empty:
-                tarefas_validas = [t for t in dados_sprint["tarefas"] if t.get("Entra_BurnUp", True) and not (t.get("Pausada") or t.get("pausada", False))]
-                fig_sprint = go.Figure()
+                    has_imp = st.checkbox("TAG: Impedimento", value=is_imp, key=f"tag_imp_{nome_sprint}_{idx_t}")
+                    has_inf = st.checkbox("TAG: Aguardando Informações", value=is_inf, key=f"tag_inf_{nome_sprint}_{idx_t}")
+                    
+                    motivo_tag_atual = tarefa_sel.get("Motivo_TAG", "")
+                    motivo_input = ""
+                    
+                    if has_imp or has_inf:
+                        motivo_input = st.text_area(
+                            "Informe o motivo do Impedimento / Aguardando Informação*",
+                            value=motivo_tag_atual,
+                            key=f"txt_motivo_tag_{nome_sprint}_{idx_t}",
+                            placeholder="Descreva os detalhes do bloqueio ou informação faltante..."
+                        )
 
-                ultimo_dia_com_lancamento = 0
-                for idx, c in enumerate(colunas_dias):
-                    tem_lancamento = any(
-                        int(r[c]) > 0 
+                    if st.button("Salvar TAGs", key=f"btn_tags_{nome_sprint}_{idx_t}"):
+                        novas = []
+                        if has_imp:
+                            novas.append("Impedimento")
+                        if has_inf:
+                            novas.append("Aguardando Informações")
+                        
+                        st.session_state.sprints[nome_sprint]["tarefas"][idx_t]["Tags"] = novas
+                        st.session_state.sprints[nome_sprint]["tarefas"][idx_t]["Motivo_TAG"] = motivo_input.strip() if (has_imp or has_inf) else ""
+                        
+                        salvar_dados_em_disco()
+                        st.success("TAGs salvas com sucesso!")
+                        st.rerun()
+
+                with tab_excluir:
+                    if st.button("🚨 Confirmar Exclusão", key=f"btn_del_{nome_sprint}_{idx_t}", type="primary"):
+                        dados_sprint["tarefas"].pop(idx_t)
+                        salvar_dados_em_disco()
+                        st.success("Tarefa excluída!")
+                        st.rerun()
+
+        # --- TABELA INTERATIVA ---
+        st.subheader("📋 Tarefas da Sprint")
+        st.caption("💡 *Marque ou desmarque a caixa **'Conta nos Gráficos?'** para definir em tempo real quais tarefas compõem a meta.*")
+
+        dados_exibicao = []
+        for t in dados_sprint["tarefas"]:
+            dados_exibicao.append({
+                "ID": t.get("ID") or t.get("id"),
+                "Status": t.get("Status") or t.get("status"),
+                "Entra_BurnUp": t.get("Entra_BurnUp", True),
+                "SP": t.get("SP") or t.get("sp", 5),
+                "Tarefa": t.get("Tarefa") or t.get("tarefa", ""),
+                "Branch": t.get("Branch", "aguardando"),
+                "Profissional": t.get("Profissional") or t.get("profissional", "-"),
+                "Pausada": t.get("Pausada") or t.get("pausada", False),
+                "Justificativa_Pausa": t.get("Justificativa_Pausa") or t.get("justificativa_pausa", "")
+            })
+
+        df_t = pd.DataFrame(dados_exibicao)
+        if not df_t.empty:
+            df_t_exibicao = df_t[["ID", "Status", "Entra_BurnUp", "SP", "Tarefa", "Branch", "Profissional", "Pausada", "Justificativa_Pausa"]]
+
+            df_editado_tabela = st.data_editor(
+                df_t_exibicao,
+                key=f"editor_tarefas_check_{nome_sprint}",
+                disabled=["ID", "Status", "SP", "Tarefa", "Branch", "Profissional", "Pausada", "Justificativa_Pausa"],
+                column_config={
+                    "Entra_BurnUp": st.column_config.CheckboxColumn(
+                        "Conta nos Gráficos?",
+                        help="Marque para incluir no gráfico da Sprint",
+                        default=True,
+                    ),
+                    "Tarefa": st.column_config.TextColumn("Tarefa", width="large")
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+
+            mudou = False
+            for _, row in df_editado_tabela.iterrows():
+                tid_str = str(row["ID"])
+                novo_val = bool(row["Entra_BurnUp"])
+                for t_item in dados_sprint["tarefas"]:
+                    t_id_atual = str(t_item.get("ID") or t_item.get("id"))
+                    if t_id_atual == tid_str:
+                        if t_item.get("Entra_BurnUp") != novo_val:
+                            t_item["Entra_BurnUp"] = novo_val
+                            mudou = True
+                        break
+            
+            if mudou:
+                salvar_dados_em_disco()
+                st.rerun()
+
+        # --- LANÇAMENTO DIÁRIO ---
+        st.subheader("📝 Evolução Diária por Tarefa (% Concluído)")
+        colunas_dias = [f"Dia {i} ({dias_uteis_lista[i-1].strftime('%d/%m')})" for i in range(1, total_dias_sprint + 1)]
+
+        matriz = []
+        for t in dados_sprint["tarefas"]:
+            row = {
+                "ID": t.get("ID") or t.get("id"), 
+                "Tarefa": t.get("Tarefa") or t.get("tarefa", ""), 
+                "Status": t.get("Status") or t.get("status", ""),
+                "SP": t.get("SP") or t.get("sp", 5),
+                "Pausada": t.get("Pausada") or t.get("pausada", False),
+                "Entra_BurnUp": t.get("Entra_BurnUp", True)
+            }
+            hist = t.get("historico_diario", {})
+            for d in range(1, total_dias_sprint + 1):
+                col_name = colunas_dias[d-1]
+                val = hist.get(f"Dia {d}", 0)
+                row[col_name] = int(val) if (val is not None and str(val).isdigit()) else 0
+            matriz.append(row)
+
+        df_m_novo = pd.DataFrame(matriz)
+        df_editado = pd.DataFrame()
+
+        if not df_m_novo.empty:
+            config_colunas = {
+                "Tarefa": st.column_config.TextColumn("Tarefa", width="large")
+            }
+            for col in colunas_dias:
+                config_colunas[col] = st.column_config.NumberColumn(
+                    col,
+                    min_value=0,
+                    max_value=100,
+                    step=5,
+                    default=0,
+                    format="%d%%"
+                )
+
+            df_editado = st.data_editor(
+                df_m_novo,
+                disabled=["ID", "Tarefa", "Status", "SP", "Pausada", "Entra_BurnUp"],
+                hide_index=True,
+                use_container_width=True,
+                column_config=config_colunas,
+                key=f"editor_dias_{nome_sprint}"
+            )
+
+            alterado = False
+            for _, row in df_editado.iterrows():
+                tid_str = str(row["ID"])
+                target_task = None
+                for t_item in dados_sprint["tarefas"]:
+                    t_id_atual = str(t_item.get("ID") or t_item.get("id"))
+                    if t_id_atual == tid_str:
+                        target_task = t_item
+                        break
+                
+                if target_task is not None:
+                    for d in range(1, total_dias_sprint + 1):
+                        col_nome = colunas_dias[d-1]
+                        raw_val = row[col_nome]
+                        try:
+                            novo_val = int(raw_val) if pd.notna(raw_val) else 0
+                        except (ValueError, TypeError):
+                            novo_val = 0
+                        
+                        if target_task["historico_diario"].get(f"Dia {d}") != novo_val:
+                            target_task["historico_diario"][f"Dia {d}"] = novo_val
+                            alterado = True
+
+            if alterado:
+                salvar_dados_em_disco()
+                st.rerun()
+        else:
+            st.info("ℹ️ Nenhuma tarefa cadastrada nesta Sprint para exibir a evolução diária.")
+
+        # --- GRÁFICOS ---
+        if not df_editado.empty:
+            tarefas_validas = [t for t in dados_sprint["tarefas"] if t.get("Entra_BurnUp", True) and not (t.get("Pausada") or t.get("pausada", False))]
+            fig_sprint = go.Figure()
+
+            ultimo_dia_com_lancamento = 0
+            for idx, c in enumerate(colunas_dias):
+                tem_lancamento = any(
+                    int(r[c]) > 0 
+                    for _, r in df_editado.iterrows() 
+                    if r["Entra_BurnUp"] and not r["Pausada"] and not pd.isna(r[c])
+                )
+                if tem_lancamento:
+                    ultimo_dia_com_lancamento = idx + 1
+
+            soma_realizada = []
+            for idx in range(total_dias_sprint):
+                c = colunas_dias[idx]
+                
+                if idx >= ultimo_dia_com_lancamento:
+                    soma_realizada.append(None)
+                else:
+                    soma_pct = sum(
+                        int(r[c]) 
                         for _, r in df_editado.iterrows() 
                         if r["Entra_BurnUp"] and not r["Pausada"] and not pd.isna(r[c])
                     )
-                    if tem_lancamento:
-                        ultimo_dia_com_lancamento = idx + 1
+                    soma_realizada.append(soma_pct)
 
-                soma_realizada = []
-                for idx in range(total_dias_sprint):
-                    c = colunas_dias[idx]
-                    
-                    if idx >= ultimo_dia_com_lancamento:
-                        soma_realizada.append(None)
-                    else:
-                        soma_pct = sum(
-                            int(r[c]) 
-                            for _, r in df_editado.iterrows() 
-                            if r["Entra_BurnUp"] and not r["Pausada"] and not pd.isna(r[c])
-                        )
-                        soma_realizada.append(soma_pct)
+            total_sp_sprint = len(tarefas_validas) * 100
 
-                total_sp_sprint = len(tarefas_validas) * 100
-
-                if tipo_sprint == "Evolução":
-                    linha_estimada = [total_sp_sprint - (i * (total_sp_sprint / total_dias_sprint)) for i in range(total_dias_sprint)]
-                    linha_realizada = [
-                        total_sp_sprint - pct if pct is not None else None 
-                        for pct in soma_realizada
-                    ]
-                    
-                    titulo_grafico = f"📉 Gráfico Burn-Down — {nome_sprint}"
-                    nome_meta = "Meta (Burn-Down)"
-                    nome_real = "Restante (Real)"
-                else:
-                    linha_estimada = [i * (total_sp_sprint / total_dias_sprint) for i in range(1, total_dias_sprint + 1)]
-                    linha_realizada = soma_realizada
-                    
-                    titulo_grafico = f"📈 Gráfico Burn-Up — {nome_sprint}"
-                    nome_meta = "Linha Ideal (Meta)"
-                    nome_real = "Concluído (Real)"
-
-                fig_sprint.add_trace(go.Scatter(
-                    x=colunas_dias, 
-                    y=linha_estimada, 
-                    mode='lines+markers', 
-                    name=nome_meta, 
-                    line=dict(color='#0A2540', width=3)
-                ))
-
-                fig_sprint.add_trace(go.Scatter(
-                    x=colunas_dias, 
-                    y=linha_realizada, 
-                    mode='lines+markers', 
-                    name=nome_real, 
-                    connectgaps=False,
-                    line=dict(color='#2ca02c', width=3, dash='dash')
-                ))
-
-                fig_sprint.update_layout(
-                    title=dict(
-                        text=f"<b>{titulo_grafico}</b>", 
-                        font=dict(
-                            family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-                            size=22
-                        ),
-                        x=0,
-                        xanchor='left'
-                    ),
-                    template="plotly_white", 
-                    height=420,
-                    xaxis_title="Dias Úteis",
-                    yaxis_title="Progresso Pontuado",
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
+            if tipo_sprint == "Evolução":
+                linha_estimada = [total_sp_sprint - (i * (total_sp_sprint / total_dias_sprint)) for i in range(total_dias_sprint)]
+                linha_realizada = [
+                    total_sp_sprint - pct if pct is not None else None 
+                    for pct in soma_realizada
+                ]
                 
-                st.plotly_chart(fig_sprint, use_container_width=True)
-                st.session_state[f"fig_sprint_{nome_sprint}"] = fig_sprint
-
-            # --- GRÁFICO DE ACOMPANHAMENTO DO PROFISSIONAL ---
-            prof_data = []
-            for t in dados_sprint["tarefas"]:
-                prof = t.get("Profissional") or t.get("profissional", "-")
-                sp_val = int(t.get("SP") or t.get("sp", 5))
-                prof_data.append({"Profissional": prof, "SP Planejado": sp_val})
-
-            df_prof = pd.DataFrame(prof_data)
-            if not df_prof.empty:
-                df_prof_grouped = df_prof.groupby("Profissional").sum().reset_index()
-
-                def definir_cor_profissional(nome_prof):
-                    nome_limpo = str(nome_prof).strip().upper()
-                    termos_genericos = ["CSOL", "DEV", "PRO", "TIME", "AGUARDANDO", "-", "SEM ALOCAÇÃO", "N/A"]
-                    
-                    if any(termo in nome_limpo for termo in termos_genericos) or len(nome_limpo.split()) < 2:
-                        return '#D9534F'
-                    return '#0A2540'
-
-                df_prof_grouped["Cor"] = df_prof_grouped["Profissional"].apply(definir_cor_profissional)
-
-                fig_devs = px.bar(
-                    df_prof_grouped, 
-                    y="Profissional", 
-                    x="SP Planejado", 
-                    orientation="h",
-                    text="SP Planejado"
-                )
+                titulo_grafico = f"📉 Gráfico Burn-Down — {nome_sprint}"
+                nome_meta = "Meta (Burn-Down)"
+                nome_real = "Restante (Real)"
+            else:
+                linha_estimada = [i * (total_sp_sprint / total_dias_sprint) for i in range(1, total_dias_sprint + 1)]
+                linha_realizada = soma_realizada
                 
-                fig_devs.update_traces(
-                    marker_color=df_prof_grouped["Cor"],
-                    textposition="outside"
-                )
+                titulo_grafico = f"📈 Gráfico Burn-Up — {nome_sprint}"
+                nome_meta = "Linha Ideal (Meta)"
+                nome_real = "Concluído (Real)"
 
-                fig_devs.update_layout(
-                    title=dict(
-                        text="<b>👥 Acompanhamento por Atribuição</b>", 
-                        font=dict(
-                            family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-                            size=22
-                        ),
-                        x=0,
-                        xanchor='left'
+            fig_sprint.add_trace(go.Scatter(
+                x=colunas_dias, 
+                y=linha_estimada, 
+                mode='lines+markers', 
+                name=nome_meta, 
+                line=dict(color='#0A2540', width=3)
+            ))
+
+            fig_sprint.add_trace(go.Scatter(
+                x=colunas_dias, 
+                y=linha_realizada, 
+                mode='lines+markers', 
+                name=nome_real, 
+                connectgaps=False,
+                line=dict(color='#2ca02c', width=3, dash='dash')
+            ))
+
+            fig_sprint.update_layout(
+                title=dict(
+                    text=f"<b>{titulo_grafico}</b>", 
+                    font=dict(
+                        family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
+                        size=22
                     ),
-                    template="plotly_white", 
-                    height=340,
-                    xaxis_title="Story Points (SP) / Esforço Planejado",
-                    yaxis_title="Profissional / Responsável"
-                )
+                    x=0,
+                    xanchor='left'
+                ),
+                template="plotly_white", 
+                height=420,
+                xaxis_title="Dias Úteis",
+                yaxis_title="Progresso Pontuado",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            st.plotly_chart(fig_sprint, use_container_width=True)
+            st.session_state[f"fig_sprint_{nome_sprint}"] = fig_sprint
 
-                st.plotly_chart(fig_devs, use_container_width=True)
-                st.session_state[f"fig_devs_{nome_sprint}"] = fig_devs
+        # --- GRÁFICO DE ACOMPANHAMENTO DO PROFISSIONAL ---
+        prof_data = []
+        for t in dados_sprint["tarefas"]:
+            prof = t.get("Profissional") or t.get("profissional", "-")
+            sp_val = int(t.get("SP") or t.get("sp", 5))
+            prof_data.append({"Profissional": prof, "SP Planejado": sp_val})
+
+        df_prof = pd.DataFrame(prof_data)
+        if not df_prof.empty:
+            df_prof_grouped = df_prof.groupby("Profissional").sum().reset_index()
+
+            def definir_cor_profissional(nome_prof):
+                nome_limpo = str(nome_prof).strip().upper()
+                termos_genericos = ["CSOL", "DEV", "PRO", "TIME", "AGUARDANDO", "-", "SEM ALOCAÇÃO", "N/A"]
+                
+                if any(termo in nome_limpo for termo in termos_genericos) or len(nome_limpo.split()) < 2:
+                    return '#D9534F'
+                return '#0A2540'
+
+            df_prof_grouped["Cor"] = df_prof_grouped["Profissional"].apply(definir_cor_profissional)
+
+            fig_devs = px.bar(
+                df_prof_grouped, 
+                y="Profissional", 
+                x="SP Planejado", 
+                orientation="h",
+                text="SP Planejado"
+            )
+            
+            fig_devs.update_traces(
+                marker_color=df_prof_grouped["Cor"],
+                textposition="outside"
+            )
+
+            fig_devs.update_layout(
+                title=dict(
+                    text="<b>👥 Acompanhamento por Atribuição</b>", 
+                    font=dict(
+                        family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
+                        size=22
+                    ),
+                    x=0,
+                    xanchor='left'
+                ),
+                template="plotly_white", 
+                height=340,
+                xaxis_title="Story Points (SP) / Esforço Planejado",
+                yaxis_title="Profissional / Responsável"
+            )
+
+            st.plotly_chart(fig_devs, use_container_width=True)
+            st.session_state[f"fig_devs_{nome_sprint}"] = fig_devs
