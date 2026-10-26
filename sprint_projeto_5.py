@@ -631,13 +631,33 @@ def modal_incluir_tarefas(nome_sprint):
                 d["Entra_BurnUp"] = True
                 d["historico_diario"] = {f"Dia {d}": 0 for d in range(1, total_dias + 1)}
                 
-                # Aloca sempre como a última tarefa da lista
                 dados_sprint["tarefas"].append(d)
             
             salvar_dados_em_disco()
             st.session_state.lista_ids_modal = [""]
             st.success("Tarefa(s) incluída(s) com sucesso como as últimas da sprint!")
             st.rerun()
+
+@st.dialog("🔐 Confirmação de Gestor para Exclusão")
+def modal_excluir_sprint(nome_sprint):
+    st.warning(f"⚠️ Atenção: Você está prestes a excluir permanentemente a **{nome_sprint}**.")
+    st.write("Esta ação não poderá ser desfeita. Digite o código de gestor para autorizar:")
+    
+    codigo_input = st.text_input("Código do Gestor", type="password", placeholder="Digite a senha de exclusão")
+    
+    col_btn_exc, col_btn_can = st.columns(2)
+    if col_btn_exc.button("🗑️ Confirmar Exclusão", type="primary", use_container_width=True):
+        if codigo_input == st.secrets["gestor"]["senha_exclusao"]:
+            del st.session_state.sprints[nome_sprint]
+            try:
+                supabase.table("sprints_store").delete().eq("nome_sprint", nome_sprint).execute()
+            except Exception as e:
+                st.error(f"Erro ao remover sprint do Supabase: {e}")
+            
+            st.success(f"Sprint '{nome_sprint}' excluída com sucesso!")
+            st.rerun()
+        else:
+            st.error("❌ Código de gestor incorreto! A exclusão foi cancelada.")
 
 @st.dialog("Ajustar Sprint?")
 def modal_inicial():
@@ -905,15 +925,7 @@ else:
             st.write("") 
             st.write("")
             if st.button("🗑️ Excluir", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
-                del st.session_state.sprints[nome_sprint]
-                
-                try:
-                    supabase.table("sprints_store").delete().eq("nome_sprint", nome_sprint).execute()
-                except Exception as e:
-                    st.error(f"Erro ao remover sprint do Supabase: {e}")
-                
-                st.success(f"Sprint '{nome_sprint}' excluída com sucesso!")
-                st.rerun()
+                modal_excluir_sprint(nome_sprint)
 
         st.markdown("---")
 
