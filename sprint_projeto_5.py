@@ -550,9 +550,6 @@ def gerar_pdf_relatorio(nome_sprint, fig_sprint):
 if "sprints" not in st.session_state:
     st.session_state.sprints = carregar_dados_do_disco()
 
-if "modal_inicial_exibido" not in st.session_state:
-    st.session_state.modal_inicial_exibido = False
-
 # --- MODAIS DE GERENCIAMENTO ---
 @st.dialog("📝 Renomear Sprint")
 def modal_renomear_sprint(nome_atual):
@@ -638,6 +635,27 @@ def modal_incluir_tarefas(nome_sprint):
             st.success("Tarefa(s) incluída(s) com sucesso como as últimas da sprint!")
             st.rerun()
 
+@st.dialog("📅 Ajustar Data de Início da Sprint")
+def modal_ajustar_datas(nome_sprint):
+    dados_sprint = st.session_state.sprints[nome_sprint]
+    tipo_sp = dados_sprint.get("tipo_sprint", "Projeto")
+    dt_inicio_atual = dados_sprint.get("data_inicio", datetime.today().date())
+
+    st.write(f"Altere a data de início da **{nome_sprint}** ({tipo_sp}):")
+    novo_inicio = st.date_input("Nova Data de Início*", value=dt_inicio_atual, key=f"date_input_ajuste_{nome_sprint}")
+    
+    total_dias = 14 if tipo_sp == "Evolução" else 15
+    novo_fim = adicionar_dias_uteis(novo_inicio, total_dias)
+    
+    st.info(f"📅 **Novo Período Projetado:** {novo_inicio.strftime('%d/%m/%Y')} até {novo_fim.strftime('%d/%m/%Y')}")
+
+    if st.button("💾 Salvar Nova Data", type="primary", use_container_width=True):
+        dados_sprint["data_inicio"] = novo_inicio
+        dados_sprint["data_fim"] = novo_fim
+        salvar_dados_em_disco()
+        st.success("Datas da sprint atualizadas com sucesso!")
+        st.rerun()
+
 @st.dialog("🔐 Confirmação de Gestor para Exclusão")
 def modal_excluir_sprint(nome_sprint):
     st.warning(f"⚠️ Atenção: Você está prestes a excluir permanentemente a **{nome_sprint}**.")
@@ -658,74 +676,6 @@ def modal_excluir_sprint(nome_sprint):
             st.rerun()
         else:
             st.error("❌ Código de gestor incorreto! A exclusão foi cancelada.")
-
-@st.dialog("Ajustar Sprint?")
-def modal_inicial():
-    sprints_disponiveis = list(st.session_state.sprints.keys())
-    
-    if not sprints_disponiveis:
-        st.warning("Nenhuma Sprint cadastrada para ajustar.")
-        if st.button("Continuar"):
-            st.session_state.modal_inicial_exibido = True
-            st.rerun()
-        return
-
-    st.write("Configure os dados ou adicione tarefas à Sprint desejada.")
-
-    with st.form("form_modal_inicio"):
-        sprint_alvo = st.selectbox(
-            "Selecione a Sprint a ser ajustada*", 
-            options=sprints_disponiveis,
-            index=0
-        )
-        
-        sprint_ref = st.session_state.sprints[sprint_alvo]
-        tipo_sp = sprint_ref.get("tipo_sprint", "Projeto")
-        dt_inicio_atual = sprint_ref.get("data_inicio", datetime.today().date())
-
-        dt_inicio = st.date_input("Data de Início da Sprint*", value=dt_inicio_atual)
-        
-        total_dias = 14 if tipo_sp == "Evolução" else 15
-        dt_fim_calculada = adicionar_dias_uteis(dt_inicio, total_dias)
-        st.info(f"📅 **Período projetado ({tipo_sp}):** {dt_inicio.strftime('%d/%m/%Y')} até {dt_fim_calculada.strftime('%d/%m/%Y')}")
-        
-        st.markdown("---")
-        deseja_add = st.radio("Deseja incluir uma nova tarefa nesta Sprint?", ["Não", "Sim"], index=0)
-        issue_id = st.text_input("Número/ID da Tarefa no Redmine", placeholder="Ex: 232824")
-        branch = st.text_input("Nome da Filial / Branch", value="aguardando")
-        
-        col_b1, col_b2 = st.columns(2)
-        btn_confirmar = col_b1.form_submit_button("💾 Salvar e Continuar")
-        btn_continuar = col_b2.form_submit_button("➡️ Apenas Continuar")
-        
-        if btn_confirmar or btn_continuar:
-            if btn_confirmar:
-                st.session_state.sprints[sprint_alvo]["data_inicio"] = dt_inicio
-                st.session_state.sprints[sprint_alvo]["data_fim"] = dt_fim_calculada
-                
-                if deseja_add == "Sim" and issue_id.strip():
-                    dados = buscar_dados_redmine(issue_id.strip(), tipo_sprint=tipo_sp)
-                    if not dados:
-                        dados = {
-                            "Status": "Desenvolvimento: Fazendo", 
-                            "SP": 5, 
-                            "Tarefa": f"Tarefa #{issue_id.strip()}", 
-                            "Profissional": "-", 
-                            "Tags": []
-                        }
-                    dados["ID"] = str(issue_id.strip())
-                    dados["Branch"] = branch
-                    dados["Pausada"] = False
-                    dados["Justificativa_Pausa"] = ""
-                    dados["Entra_BurnUp"] = True
-                    dados["historico_diario"] = {f"Dia {d}": 0 for d in range(1, total_dias + 1)}
-                    
-                    st.session_state.sprints[sprint_alvo]["tarefas"].append(dados)
-                    
-                salvar_dados_em_disco()
-            
-            st.session_state.modal_inicial_exibido = True
-            st.rerun()
 
 @st.dialog("✨ Criar Nova Sprint Parametrizada")
 def modal_criar_sprint():
@@ -775,10 +725,6 @@ def modal_criar_sprint():
             salvar_dados_em_disco()
             st.success(f"{nome_sprint} criada com sucesso!")
             st.rerun()
-
-if not st.session_state.modal_inicial_exibido:
-    st.session_state.modal_inicial_exibido = True
-    modal_inicial()
 
 # --- PAINEL LATERAL (SIDEBAR) ---
 with st.sidebar:
@@ -882,7 +828,7 @@ with col_head2:
 
 st.markdown("---")
 
-# --- SELETOR DE SPRINTS, RENOMEAR, INCLUIR TAREFAS E EXCLUIR (LADO A LADO) ---
+# --- SELETOR DE SPRINTS, RENOMEAR, INCLUIR TAREFAS, AJUSTAR DATAS E EXCLUIR ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
@@ -894,7 +840,8 @@ else:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    col_sel, col_ren, col_inc, col_del = st.columns([4, 3, 3, 3])
+    # 5 Colunas para dispor: Select, Renomear, Incluir Tarefas, Ajustar Datas e Excluir
+    col_sel, col_ren, col_inc, col_data, col_del = st.columns([3, 2, 2, 2, 2])
     
     with col_sel:
         nome_sprint = st.selectbox(
@@ -918,8 +865,14 @@ else:
         with col_inc:
             st.write("") 
             st.write("")
-            if st.button("➕ Incluir Tarefas", key=f"btn_inc_tarefa_{nome_sprint}", use_container_width=True):
+            if st.button("➕ Incluir", key=f"btn_inc_tarefa_{nome_sprint}", use_container_width=True):
                 modal_incluir_tarefas(nome_sprint)
+
+        with col_data:
+            st.write("") 
+            st.write("")
+            if st.button("📅 Datas", key=f"btn_datas_{nome_sprint}", use_container_width=True):
+                modal_ajustar_datas(nome_sprint)
 
         with col_del:
             st.write("") 
