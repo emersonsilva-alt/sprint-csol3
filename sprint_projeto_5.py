@@ -567,11 +567,9 @@ def modal_renomear_sprint(nome_atual):
         elif novo_nome_limpo != nome_atual and novo_nome_limpo in st.session_state.sprints:
             st.error("Já existe uma Sprint com este nome!")
         elif novo_nome_limpo != nome_atual:
-            # 1. Transfere dados na memória
             dados_sprint = st.session_state.sprints.pop(nome_atual)
             st.session_state.sprints[novo_nome_limpo] = dados_sprint
             
-            # 2. Deleta o nome antigo no Supabase e insere com o novo nome
             try:
                 supabase.table("sprints_store").delete().eq("nome_sprint", nome_atual).execute()
             except Exception as e:
@@ -579,6 +577,63 @@ def modal_renomear_sprint(nome_atual):
                 
             salvar_dados_em_disco()
             st.success(f"Sprint renomeada para '{novo_nome_limpo}' com sucesso!")
+            st.rerun()
+
+@st.dialog("➕ Incluir Tarefas na Sprint")
+def modal_incluir_tarefas(nome_sprint):
+    st.write(f"Adicione novas tarefas do Redmine à **{nome_sprint}**:")
+    
+    # Inicializa estado dinâmico para os campos de input de tarefas no modal
+    if "num_campos_tarefas" not in st.session_state:
+        st.session_state.num_campos_tarefas = 1
+
+    ids_informados = []
+    for i in range(st.session_state.num_campos_tarefas):
+        val = st.text_input(f"ID da Tarefa Redmine #{i+1}", key=f"input_id_tarefa_{i}", placeholder="Ex: 232824")
+        if val.strip():
+            ids_informados.append(val.strip())
+
+    col_mais, col_menos = st.columns(2)
+    if col_mais.button("➕ Adicionar outro campo"):
+        st.session_state.num_campos_tarefas += 1
+        st.rerun()
+        
+    if col_menos.button("➖ Remover último campo") and st.session_state.num_campos_tarefas > 1:
+        st.session_state.num_campos_tarefas -= 1
+        st.rerun()
+
+    st.markdown("---")
+    if st.button("💾 Confirmar e Incluir na Sprint", type="primary", use_container_width=True):
+        if not ids_informados:
+            st.warning("Informe pelo menos um ID de tarefa.")
+        else:
+            dados_sprint = st.session_state.sprints[nome_sprint]
+            tipo_sp = dados_sprint.get("tipo_sprint", "Projeto")
+            total_dias = 14 if tipo_sp == "Evolução" else 15
+            
+            for i_id in ids_informados:
+                d = buscar_dados_redmine(i_id, tipo_sprint=tipo_sp)
+                if not d:
+                    d = {
+                        "Status": "Desenvolvimento: Fazendo", 
+                        "SP": 5, 
+                        "Tarefa": f"Tarefa #{i_id}", 
+                        "Profissional": "-", 
+                        "Tags": []
+                    }
+                d["ID"] = i_id
+                d["Branch"] = "aguardando"
+                d["Pausada"] = False
+                d["Justificativa_Pausa"] = ""
+                d["Entra_BurnUp"] = True
+                d["historico_diario"] = {f"Dia {d}": 0 for d in range(1, total_dias + 1)}
+                
+                # Aloca sempre como a última tarefa da lista
+                dados_sprint["tarefas"].append(d)
+            
+            salvar_dados_em_disco()
+            st.session_state.num_campos_tarefas = 1  # Reseta contador
+            st.success("Tarefa(s) incluída(s) com sucesso como as últimas da sprint!")
             st.rerun()
 
 @st.dialog("Ajustar Sprint?")
@@ -804,7 +859,7 @@ with col_head2:
 
 st.markdown("---")
 
-# --- SELETOR DE SPRINTS, RENOMEAR E EXCLUIR (LADO A LADO) ---
+# --- SELETOR DE SPRINTS, RENOMEAR, INCLUIR TAREFAS E EXCLUIR (LADO A LADO) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
@@ -816,7 +871,8 @@ else:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    col_sel, col_ren, col_del = st.columns([6, 3, 3])
+    # 4 Colunas para dispor perfeitamente o Seletor, Renomear, Incluir e Excluir
+    col_sel, col_ren, col_inc, col_del = st.columns([4, 3, 3, 3])
     
     with col_sel:
         nome_sprint = st.selectbox(
@@ -834,17 +890,21 @@ else:
         with col_ren:
             st.write("") 
             st.write("")
-            if st.button("📝 Renomear Sprint", key=f"btn_ren_sprint_{nome_sprint}", use_container_width=True):
+            if st.button("📝 Renomear", key=f"btn_ren_sprint_{nome_sprint}", use_container_width=True):
                 modal_renomear_sprint(nome_sprint)
+
+        with col_inc:
+            st.write("") 
+            st.write("")
+            if st.button("➕ Incluir Tarefas", key=f"btn_inc_tarefa_{nome_sprint}", use_container_width=True):
+                modal_incluir_tarefas(nome_sprint)
 
         with col_del:
             st.write("") 
             st.write("")
-            if st.button("🗑️ Excluir Sprint", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
-                # 1. Remove da memória
+            if st.button("🗑️ Excluir", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
                 del st.session_state.sprints[nome_sprint]
                 
-                # 2. Exclui permanentemente do Supabase
                 try:
                     supabase.table("sprints_store").delete().eq("nome_sprint", nome_sprint).execute()
                 except Exception as e:
@@ -883,7 +943,7 @@ else:
         st.markdown("---")
 
         # --- GESTÃO DE TAREFAS ---
-        with st.expander(f"🛠️ Gerenciar Tarefas ({nome_sprint}) - Editar, Pausar, Incluir ou Excluir", expanded=False):
+        with st.expander(f"🛠️ Gerenciar Tarefas ({nome_sprint}) - Editar, Pausar ou Excluir", expanded=False):
             tarefas_sprint = dados_sprint["tarefas"]
             if tarefas_sprint:
                 ids_t = [f"#{t.get('ID') or t.get('id')} - {(t.get('Tarefa') or t.get('tarefa', ''))[:35]}..." for t in tarefas_sprint]
