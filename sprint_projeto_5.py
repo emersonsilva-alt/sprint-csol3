@@ -583,29 +583,32 @@ def modal_renomear_sprint(nome_atual):
 def modal_incluir_tarefas(nome_sprint):
     st.write(f"Adicione novas tarefas do Redmine à **{nome_sprint}**:")
     
-    # Inicializa estado dinâmico para os campos de input de tarefas no modal
-    if "num_campos_tarefas" not in st.session_state:
-        st.session_state.num_campos_tarefas = 1
+    if "lista_ids_modal" not in st.session_state:
+        st.session_state.lista_ids_modal = [""]
 
     ids_informados = []
-    for i in range(st.session_state.num_campos_tarefas):
-        val = st.text_input(f"ID da Tarefa Redmine #{i+1}", key=f"input_id_tarefa_{i}", placeholder="Ex: 232824")
-        if val.strip():
-            ids_informados.append(val.strip())
+    for i, val in enumerate(st.session_state.lista_ids_modal):
+        novo_val = st.text_input(f"ID da Tarefa Redmine #{i+1}", value=val, key=f"input_id_tarefa_{i}", placeholder="Ex: 232824")
+        st.session_state.lista_ids_modal[i] = novo_val
+        if novo_val.strip():
+            ids_informados.append(novo_val.strip())
 
     col_mais, col_menos = st.columns(2)
-    if col_mais.button("➕ Adicionar outro campo"):
-        st.session_state.num_campos_tarefas += 1
-        st.rerun()
-        
-    if col_menos.button("➖ Remover último campo") and st.session_state.num_campos_tarefas > 1:
-        st.session_state.num_campos_tarefas -= 1
-        st.rerun()
+    
+    def adicionar_campo():
+        st.session_state.lista_ids_modal.append("")
+
+    def remover_campo():
+        if len(st.session_state.lista_ids_modal) > 1:
+            st.session_state.lista_ids_modal.pop()
+
+    col_mais.button("➕ Adicionar outro campo", on_click=adicionar_campo, use_container_width=True)
+    col_menos.button("➖ Remover último campo", on_click=remover_campo, use_container_width=True)
 
     st.markdown("---")
     if st.button("💾 Confirmar e Incluir na Sprint", type="primary", use_container_width=True):
         if not ids_informados:
-            st.warning("Informe pelo menos um ID de tarefa.")
+            st.warning("Informe pelo menos um ID de tarefa válido.")
         else:
             dados_sprint = st.session_state.sprints[nome_sprint]
             tipo_sp = dados_sprint.get("tipo_sprint", "Projeto")
@@ -632,7 +635,7 @@ def modal_incluir_tarefas(nome_sprint):
                 dados_sprint["tarefas"].append(d)
             
             salvar_dados_em_disco()
-            st.session_state.num_campos_tarefas = 1  # Reseta contador
+            st.session_state.lista_ids_modal = [""]
             st.success("Tarefa(s) incluída(s) com sucesso como as últimas da sprint!")
             st.rerun()
 
@@ -871,7 +874,6 @@ else:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    # 4 Colunas para dispor perfeitamente o Seletor, Renomear, Incluir e Excluir
     col_sel, col_ren, col_inc, col_del = st.columns([4, 3, 3, 3])
     
     with col_sel:
