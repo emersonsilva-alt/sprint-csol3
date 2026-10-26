@@ -777,23 +777,23 @@ with col_head2:
 
 st.markdown("---")
 
-# --- SELETOR DE SPRINTS (FORMATO DROPDOWN / MENU SUSPENSO) ---
+# --- SELETOR DE SPRINTS, RENOMEAR E EXCLUIR (LADO A LADO) ---
 nomes_sprints = list(st.session_state.sprints.keys())
 
 if not nomes_sprints:
     st.warning("Nenhuma Sprint cadastrada. Clique em '➕ Criar Nova Sprint' para começar.")
 else:
-    # Garante a regra atual: seleciona por padrão a sprint ativa ou principal em andamento
     sprint_padrao_nome = obter_sprint_padrao_principal()
     
     if sprint_padrao_nome and sprint_padrao_nome in nomes_sprints:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    col_drop1, col_drop2 = st.columns([6, 6])
-    with col_drop1:
+    col_sel, col_ren, col_del = st.columns([4, 5, 3])
+    
+    with col_sel:
         nome_sprint = st.selectbox(
-            "📋 **Selecione a Sprint Ativa / Visualização:**",
+            "📋 **Selecionar Sprint:**",
             options=nomes_sprints,
             index=0,
             key="selectbox_sprint_principal"
@@ -804,11 +804,8 @@ else:
         tipo_sprint = dados_sprint.get("tipo_sprint", "Projeto")
         total_dias_sprint = 14 if tipo_sprint == "Evolução" else 15
 
-        st.markdown("---")
-
-        col_ren_1, col_ren_2, col_ren_3 = st.columns([5, 3, 2])
-        with col_ren_1:
-            novo_nome_input = st.text_input("📝 Renomear Sprint Atual:", value=nome_sprint, key=f"ren_input_{nome_sprint}")
+        with col_ren:
+            novo_nome_input = st.text_input("📝 **Renomear Sprint:**", value=nome_sprint, key=f"ren_input_{nome_sprint}")
             if novo_nome_input.strip() and novo_nome_input.strip() != nome_sprint:
                 if novo_nome_input.strip() in st.session_state.sprints:
                     st.error("Já existe uma Sprint com esse nome!")
@@ -818,8 +815,8 @@ else:
                     st.success(f"Sprint renomeada para '{novo_nome_input.strip()}'!")
                     st.rerun()
 
-        with col_ren_3:
-            st.write("")
+        with col_del:
+            st.write("") 
             st.write("")
             if st.button("🗑️ Excluir Sprint", key=f"btn_del_sprint_{nome_sprint}", type="primary", use_container_width=True):
                 del st.session_state.sprints[nome_sprint]
