@@ -291,13 +291,25 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
     url = f"{REDMINE_URL}/issues/{issue_id}.json"
     headers = {"X-Redmine-API-Key": REDMINE_API_KEY}
     try:
-        response = requests.get(url, headers=headers, timeout=5, verify=False)
+        response = requests.get(url, headers=headers, timeout=10, verify=False)
         if response.status_code == 200:
-            data = response.json().get("issue", {})
-            status = data.get("status", {}).get("name", "N/A")
-            titulo = data.get("subject", "Sem título")
-            profissional = data.get("assigned_to", {}).get("name", "-")
+            conteudo = response.json()
+            data = conteudo.get("issue", {})
             
+            # Extração segura do Status
+            status_obj = data.get("status", {})
+            status = status_obj.get("name") if isinstance(status_obj, dict) else str(status_obj or "Desenvolvimento: A Fazer")
+            
+            # Extração segura do Título / Assunto
+            titulo = data.get("subject", f"Tarefa #{issue_id}")
+            
+            # Extração segura do Profissional Atribuído
+            assigned_obj = data.get("assigned_to", {})
+            profissional = assigned_obj.get("name") if isinstance(assigned_obj, dict) else str(assigned_obj or "-")
+            if not profissional or profissional == "None":
+                profissional = "-"
+
+            # Extração de Tags / Campos personalizados
             tags = []
             for field in data.get("custom_fields", []):
                 name = str(field.get("name", "")).lower()
@@ -314,6 +326,7 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
                             if val_str and val_str.lower() not in ["none", "null", "[]", ""]:
                                 tags.append(val_str)
 
+            # Cálculo ou busca de Story Points (SP)
             sp = 0
             if "estimated_hours" in data and data["estimated_hours"] is not None:
                 try:
@@ -343,9 +356,9 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
                 "Tags": tags
             }
         else:
-            st.warning(f"⚠️ Redmine retornou status {response.status_code} para a tarefa #{issue_id}. Verifique se o ID existe.")
+            st.warning(f"⚠️ Redmine retornou status {response.status_code} para a tarefa #{issue_id}.")
     except Exception as e:
-        st.error(f"❌ Erro de conexão ao buscar tarefa #{issue_id} no Redmine: {e}")
+        st.error(f"❌ Erro ao conectar com o Redmine para a tarefa #{issue_id}: {e}")
     
     return None
 
