@@ -291,7 +291,7 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
     url = f"{REDMINE_URL}/issues/{issue_id}.json"
     headers = {"X-Redmine-API-Key": REDMINE_API_KEY}
     try:
-        response = requests.get(url, headers=headers, timeout=3, verify=False)
+        response = requests.get(url, headers=headers, timeout=5, verify=False)
         if response.status_code == 200:
             data = response.json().get("issue", {})
             status = data.get("status", {}).get("name", "N/A")
@@ -315,30 +315,38 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
                                 tags.append(val_str)
 
             sp = 0
-            if tipo_sprint == "Evolução":
+            if "estimated_hours" in data and data["estimated_hours"] is not None:
+                try:
+                    sp = int(float(str(data["estimated_hours"]).replace(",", ".")))
+                except (ValueError, TypeError):
+                    sp = 0
+
+            if sp <= 0:
                 for field in data.get("custom_fields", []):
                     f_name = str(field.get("name", "")).lower()
-                    if "story point" in f_name or "sp" in f_name:
-                        if field.get("value"):
+                    if any(termo in f_name for termo in ["story", "sp", "ponto", "esforço"]):
+                        val = field.get("value")
+                        if val:
                             try:
-                                sp = int(float(str(field["value"]).replace(",", ".")))
+                                sp = int(float(str(val).replace(",", ".")))
+                                break
                             except (ValueError, TypeError):
-                                sp = 0
-            else:
-                if "estimated_hours" in data and data["estimated_hours"]:
-                    sp = int(data["estimated_hours"])
-                else:
-                    for field in data.get("custom_fields", []):
-                        f_name = str(field.get("name", "")).lower()
-                        if "story point" in f_name or "sp" in f_name:
-                            if field.get("value"):
-                                try:
-                                    sp = int(float(str(field["value"]).replace(",", ".")))
-                                except (ValueError, TypeError):
-                                    sp = 0
-            return {"Status": status, "SP": sp if sp > 0 else 5, "Tarefa": titulo, "Profissional": profissional, "Tags": tags}
-    except Exception:
-        pass
+                                pass
+
+            sp_final = sp if sp > 0 else 5
+
+            return {
+                "Status": status, 
+                "SP": sp_final, 
+                "Tarefa": titulo, 
+                "Profissional": profissional, 
+                "Tags": tags
+            }
+        else:
+            st.warning(f"⚠️ Redmine retornou status {response.status_code} para a tarefa #{issue_id}. Verifique se o ID existe.")
+    except Exception as e:
+        st.error(f"❌ Erro de conexão ao buscar tarefa #{issue_id} no Redmine: {e}")
+    
     return None
 
 def sincronizar_sprint_com_redmine(nome_sprint):
@@ -840,7 +848,6 @@ else:
         nomes_sprints.remove(sprint_padrao_nome)
         nomes_sprints.insert(0, sprint_padrao_nome)
 
-    # 5 Colunas para dispor: Select, Renomear, Incluir Tarefas, Ajustar Datas e Excluir
     col_sel, col_ren, col_inc, col_data, col_del = st.columns([3, 2, 2, 2, 2])
     
     with col_sel:
