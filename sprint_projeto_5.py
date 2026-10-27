@@ -289,27 +289,35 @@ def verificar_impedimentos(tarefa):
 
 def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
     url = f"{REDMINE_URL}/issues/{issue_id}.json"
-    headers = {"X-Redmine-API-Key": REDMINE_API_KEY}
+    headers = {
+        "X-Redmine-API-Key": REDMINE_API_KEY,
+        "Content-Type": "application/json"
+    }
     try:
         response = requests.get(url, headers=headers, timeout=10, verify=False)
+        
         if response.status_code == 200:
             conteudo = response.json()
             data = conteudo.get("issue", {})
             
-            # Extração segura do Status
+            if not data:
+                st.warning(f"⚠️ A API do Redmine retornou o JSON vazio para a issue #{issue_id}.")
+                return None
+
+            # Extração do Status
             status_obj = data.get("status", {})
-            status = status_obj.get("name") if isinstance(status_obj, dict) else str(status_obj or "Desenvolvimento: A Fazer")
+            status = status_obj.get("name") if isinstance(status_obj, dict) else "Desenvolvimento: A Fazer"
             
-            # Extração segura do Título / Assunto
+            # Extração do Título (Subject)
             titulo = data.get("subject", f"Tarefa #{issue_id}")
             
-            # Extração segura do Profissional Atribuído
+            # Extração do Responsável (Assigned to)
             assigned_obj = data.get("assigned_to", {})
-            profissional = assigned_obj.get("name") if isinstance(assigned_obj, dict) else str(assigned_obj or "-")
-            if not profissional or profissional == "None":
+            profissional = assigned_obj.get("name") if isinstance(assigned_obj, dict) else "-"
+            if not profissional or str(profissional).lower() in ["none", "null", ""]:
                 profissional = "-"
 
-            # Extração de Tags / Campos personalizados
+            # Extração de Tags e Custom Fields
             tags = []
             for field in data.get("custom_fields", []):
                 name = str(field.get("name", "")).lower()
@@ -326,7 +334,7 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
                             if val_str and val_str.lower() not in ["none", "null", "[]", ""]:
                                 tags.append(val_str)
 
-            # Cálculo ou busca de Story Points (SP)
+            # Story Points / Horas Estimadas
             sp = 0
             if "estimated_hours" in data and data["estimated_hours"] is not None:
                 try:
@@ -356,17 +364,19 @@ def buscar_dados_redmine(issue_id, tipo_sprint="Projeto"):
                 "Tags": tags
             }
         else:
-            st.warning(f"⚠️ Redmine retornou status {response.status_code} para a tarefa #{issue_id}.")
+            st.error(f"❌ Erro Redmine (#{issue_id}): Código HTTP {response.status_code}. Verifique sua API Key ou se a issue existe.")
     except Exception as e:
-        st.error(f"❌ Erro ao conectar com o Redmine para a tarefa #{issue_id}: {e}")
+        st.error(f"❌ Exceção ao conectar no Redmine para a issue #{issue_id}: {e}")
     
     return None
 
 def sincronizar_sprint_com_redmine(nome_sprint):
     if nome_sprint in st.session_state.sprints:
         tipo_sp = st.session_state.sprints[nome_sprint].get("tipo_sprint", "Projeto")
+        atualizou_alguma = False
+        
         for tarefa in st.session_state.sprints[nome_sprint]["tarefas"]:
-            tid = tarefa.get("ID") or tarefa.get("id")
+            tid = str(tarefa.get("ID") or tarefa.get("id", "")).strip()
             if tid:
                 dados_novos = buscar_dados_redmine(tid, tipo_sprint=tipo_sp)
                 if dados_novos:
@@ -374,15 +384,20 @@ def sincronizar_sprint_com_redmine(nome_sprint):
                     tarefa["Profissional"] = dados_novos["Profissional"]
                     tarefa["Tarefa"] = dados_novos["Tarefa"]
                     
-                    tags_locais = [str(t).strip() for t in tarefa.get("Tags", []) if str(t).strip()]
-                    tags_redmine = [str(t).strip() for t in dados_novos.get("Tags", []) if str(t).strip()]
-                    
-                    tags_unificadas = list(dict.fromkeys(tags_locais + tags_redmine))
-                    tarefa["Tags"] = tags_unificadas
-
                     if dados_novos["SP"] > 0:
                         tarefa["SP"] = dados_novos["SP"]
-        salvar_dados_em_disco()
+                        
+                    tags_locais = [str(t).strip() for t in tarefa.get("Tags", []) if str(t).strip()]
+                    tags_redmine = [str(t).strip() for t in dados_novos.get("Tags", []) if str(t).strip()]
+                    tarefa["Tags"] = list(dict.fromkeys(tags_locais + tags_redmine))
+                    
+                    atualizou_alguma = True
+
+        if atualizou_alguma:
+            salvar_dados_em_disco()
+            st.success("✨ Sincronização realizada com sucesso e salva no Supabase!")
+        else:
+            st.warning("⚠️ Nenhuma tarefa foi atualizada. Verifique os logs acima.")
 
 def obter_situacao_e_estilo_sprint(profissional, status_redmine):
     prof = str(profissional).strip()
